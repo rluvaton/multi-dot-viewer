@@ -287,6 +287,7 @@ class MultiDotViewer {
       .attr('x', 16)
       .attr('y', 26)
       .attr('class', 'diagram-title')
+      .style('font-family', 'monospace')
       .style('font-size', '14px')
       .style('font-weight', '500')
       .style('fill', '#1e293b')
