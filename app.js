@@ -964,11 +964,7 @@ class MultiDotViewer {
       return;
     }
 
-    // Confirm deletion with user
-    const confirmMessage = `Are you sure you want to delete ${unselectedDiagrams.length} unselected diagram${unselectedDiagrams.length > 1 ? 's' : ''}? This cannot be undone.`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+
 
     // Delete each unselected diagram
     unselectedDiagrams.forEach(diagramId => {
