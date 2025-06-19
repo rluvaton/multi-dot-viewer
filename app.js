@@ -674,39 +674,52 @@ class MultiDotViewer {
   extractLabelsFromDot(dotContent) {
     const labels = new Set();
 
-    // Remove comments and normalize whitespace
-    const cleanDot = dotContent.replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*$/gm, '')
-      .replace(/\s+/g, ' ');
+    try {
+      // Parse DOT content using dotparser
+      const parsed = dotparser.parse(dotContent);
 
-    // Match node definitions and labels
-    // Pattern matches: NodeName [label="SomeLabel"] or NodeName [label=SomeLabel] or just NodeName
-    const nodePatterns = [
-      /(\w+)\s*\[.*?label\s*=\s*"([^"]+)".*?\]/g,  // label="text"
-      /(\w+)\s*\[.*?label\s*=\s*([^\s\]]+).*?\]/g, // label=text
-      /(\w+)(?:\s*\[(?!.*label)[^\]]*\])?(?=\s*(?:->|--|;|\s))/g // just node names
-    ];
+      // Function to recursively extract nodes from parsed structure
+      const extractNodes = (items) => {
+        if (!items) return;
 
-    // Extract labeled nodes first (higher priority)
-    let match;
-    nodePatterns[0].lastIndex = 0;
-    while ((match = nodePatterns[0].exec(cleanDot)) !== null) {
-      labels.add(match[2]); // Use the label text
-    }
+        items.forEach(item => {
+          if (item.type === 'node') {
+            // Check if node has a label attribute
+            if (item.attributes && item.attributes.label) {
+              // Remove quotes from label if present
+              const label = item.attributes.label.replace(/^"(.*)"$/, '$1');
+              labels.add(label);
+            } else {
+              // Use node ID if no label specified
+              labels.add(item.node_id);
+            }
+          } else if (item.type === 'subgraph' && item.children) {
+            // Recursively process subgraph children
+            extractNodes(item.children);
+          } else if (item.type === 'edge') {
+            // Extract nodes from edges (left and right)
+            if (item.left && item.left.id) {
+              labels.add(item.left.id);
+            }
+            if (item.right && item.right.id) {
+              labels.add(item.right.id);
+            }
+          }
+        });
+      };
 
-    nodePatterns[1].lastIndex = 0;
-    while ((match = nodePatterns[1].exec(cleanDot)) !== null) {
-      labels.add(match[2]); // Use the label text
-    }
+      // Extract nodes from all graphs in the parsed structure
+      parsed.forEach(graph => {
+        if (graph.children) {
+          extractNodes(graph.children);
+        }
+      });
 
-    // Extract plain node names (only if not already labeled)
-    nodePatterns[2].lastIndex = 0;
-    while ((match = nodePatterns[2].exec(cleanDot)) !== null) {
-      const nodeName = match[1];
-      // Only add if we haven't seen this node with a label
-      if (!cleanDot.includes(`${nodeName}[`) || !cleanDot.includes('label')) {
-        labels.add(nodeName);
-      }
+    } catch (error) {
+      console.error('Error parsing DOT content:', error);
+      console.log('DOT content:', dotContent);
+      // Fallback: return empty set if parsing fails
+      return [];
     }
 
     return Array.from(labels);
