@@ -36,6 +36,9 @@ body {
   border-right: 1px solid #e2e8f0;
   overflow-y: auto;
   z-index: 90;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 .resize-handle {
@@ -189,6 +192,7 @@ body {
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .sidebar-header h3 {
@@ -211,6 +215,7 @@ body {
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .selection-btn {
@@ -239,6 +244,9 @@ body {
 
 .diagram-list {
   padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .empty-state {
@@ -583,20 +591,24 @@ body {
 }
 
 /* Scrollbar styling */
-.sidebar-content::-webkit-scrollbar {
+.sidebar-content::-webkit-scrollbar,
+.diagram-list::-webkit-scrollbar {
   width: 6px;
 }
 
-.sidebar-content::-webkit-scrollbar-track {
+.sidebar-content::-webkit-scrollbar-track,
+.diagram-list::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
 
-.sidebar-content::-webkit-scrollbar-thumb {
+.sidebar-content::-webkit-scrollbar-thumb,
+.diagram-list::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
 
-.sidebar-content::-webkit-scrollbar-thumb:hover {
+.sidebar-content::-webkit-scrollbar-thumb:hover,
+.diagram-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
