@@ -272,16 +272,19 @@ class MultiDotViewer {
       .style('filter', 'drop-shadow(0px 8px 32px rgba(0, 0, 0, 0.1))');
 
     // Create a clipping mask for the header with rounded top corners only
+    // Account for border width so mask stays inside container border
+    const borderWidth = 1;
+    const innerWidth = diagramData.size.width - (borderWidth * 2);
     const maskId = `header-mask-${diagramData.id}`;
     container.append('defs').append('clipPath')
       .attr('id', maskId)
       .append('path')
-      .attr('d', `M 0,12 
-                        Q 0,0 12,0 
-                        L ${diagramData.size.width - 12},0 
-                        Q ${diagramData.size.width},0 ${diagramData.size.width},12 
-                        L ${diagramData.size.width},50 
-                        L 0,50 Z`);
+      .attr('d', `M ${borderWidth},${12 - borderWidth} 
+                        Q ${borderWidth},${borderWidth} ${12},${borderWidth} 
+                        L ${diagramData.size.width - 12},${borderWidth} 
+                        Q ${diagramData.size.width - borderWidth},${borderWidth} ${diagramData.size.width - borderWidth},${12 - borderWidth} 
+                        L ${diagramData.size.width - borderWidth},50 
+                        L ${borderWidth},50 Z`);
 
     // Header
     const header = container.append('g')
