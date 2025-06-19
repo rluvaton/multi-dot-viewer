@@ -725,6 +725,8 @@ class MultiDotViewer {
   }
 
   toggleDiagramVisibility(diagramId, isVisible) {
+    const wasEmpty = this.visibleDiagrams.size === 0;
+
     if (isVisible) {
       this.visibleDiagrams.add(diagramId);
     } else {
@@ -733,6 +735,11 @@ class MultiDotViewer {
 
     this.updateDiagramVisibility();
     this.updateConnections();
+
+    // If this is the first diagram being selected from empty state, focus on it
+    if (isVisible && wasEmpty && this.visibleDiagrams.size === 1) {
+      this.focusOnDiagram(diagramId);
+    }
   }
 
   updateDiagramVisibility() {
