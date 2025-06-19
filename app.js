@@ -675,8 +675,14 @@ class MultiDotViewer {
     const labels = new Set();
 
     try {
+      // Check if dotparser is available
+      if (typeof dotParser === 'undefined') {
+        console.error('dotParser library not loaded');
+        return [];
+      }
+
       // Parse DOT content using dotparser
-      const parsed = dotparser.parse(dotContent);
+      const parsed = dotParser.parse(dotContent);
 
       // Function to recursively extract nodes from parsed structure
       const extractNodes = (items) => {
