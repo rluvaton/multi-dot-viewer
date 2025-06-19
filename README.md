@@ -8,6 +8,10 @@ A powerful web application for viewing and analyzing multiple DOT (Graphviz) dia
 
 **Try it now**: [https://rluvaton.github.io/multi-dot-viewer/](https://rluvaton.github.io/multi-dot-viewer/)
 
+## Screenshots
+
+![Sample diagrams in light mode](./assets/screenshot-sample-light-mode.png)
+
 ## ✨ Features
 
 ### Core Functionality
