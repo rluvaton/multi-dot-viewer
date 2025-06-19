@@ -13,6 +13,7 @@ class MultiDotViewer {
     this.isResizing = false;
     this.currentRowMaxHeight = 0;
     this.currentRowStartY = 50;
+    this.connections = new Map(); // Store diagram connections
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -148,6 +149,7 @@ class MultiDotViewer {
 
     if (successCount > 0) {
       this.updateDiagramList();
+      this.updateConnections();
       this.fitAllDiagrams();
     }
 
@@ -195,6 +197,9 @@ class MultiDotViewer {
     const containerWidth = Math.max(350, originalWidth + padding);
     const containerHeight = Math.max(250, originalHeight + headerHeight + padding);
 
+    // Extract labels from DOT content
+    const labels = this.extractLabelsFromDot(dotContent);
+
     // Create diagram data
     const diagramData = {
       id: this.generateId(),
@@ -204,7 +209,8 @@ class MultiDotViewer {
       originalWidth,
       originalHeight,
       position: { ...this.nextDiagramPosition },
-      size: { width: containerWidth, height: containerHeight }
+      size: { width: containerWidth, height: containerHeight },
+      labels: labels
     };
 
     // Add to diagrams map
@@ -496,11 +502,16 @@ class MultiDotViewer {
     }
 
     this.updateDiagramList();
+    this.updateConnections();
   }
 
   clearAllDiagrams() {
     // Remove all diagram elements from the SVG
     this.viewport.selectAll('.diagram-container').remove();
+
+    // Clear connections
+    this.viewport.selectAll('.connection-line').remove();
+    this.viewport.selectAll('.connection-label').remove();
 
     // Clear the diagrams map
     this.diagrams.clear();
@@ -649,6 +660,124 @@ class MultiDotViewer {
   // Utility functions
   generateId() {
     return 'diagram_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  extractLabelsFromDot(dotContent) {
+    const labels = new Set();
+
+    // Remove comments and normalize whitespace
+    const cleanDot = dotContent.replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\s+/g, ' ');
+
+    // Match node definitions and labels
+    // Pattern matches: NodeName [label="SomeLabel"] or NodeName [label=SomeLabel] or just NodeName
+    const nodePatterns = [
+      /(\w+)\s*\[.*?label\s*=\s*"([^"]+)".*?\]/g,  // label="text"
+      /(\w+)\s*\[.*?label\s*=\s*([^\s\]]+).*?\]/g, // label=text
+      /(\w+)(?:\s*\[(?!.*label)[^\]]*\])?(?=\s*(?:->|--|;|\s))/g // just node names
+    ];
+
+    // Extract labeled nodes first (higher priority)
+    let match;
+    nodePatterns[0].lastIndex = 0;
+    while ((match = nodePatterns[0].exec(cleanDot)) !== null) {
+      labels.add(match[2]); // Use the label text
+    }
+
+    nodePatterns[1].lastIndex = 0;
+    while ((match = nodePatterns[1].exec(cleanDot)) !== null) {
+      labels.add(match[2]); // Use the label text
+    }
+
+    // Extract plain node names (only if not already labeled)
+    nodePatterns[2].lastIndex = 0;
+    while ((match = nodePatterns[2].exec(cleanDot)) !== null) {
+      const nodeName = match[1];
+      // Only add if we haven't seen this node with a label
+      if (!cleanDot.includes(`${nodeName}[`) || !cleanDot.includes('label')) {
+        labels.add(nodeName);
+      }
+    }
+
+    return Array.from(labels);
+  }
+
+  calculateSharedLabels(labels1, labels2) {
+    const set1 = new Set(labels1);
+    const shared = labels2.filter(label => set1.has(label));
+    return shared;
+  }
+
+  updateConnections() {
+    // Clear existing connections
+    this.viewport.selectAll('.connection-line').remove();
+    this.viewport.selectAll('.connection-label').remove();
+
+    const diagrams = Array.from(this.diagrams.values());
+
+    // Compare all pairs of diagrams
+    for (let i = 0; i < diagrams.length; i++) {
+      for (let j = i + 1; j < diagrams.length; j++) {
+        const diagram1 = diagrams[i];
+        const diagram2 = diagrams[j];
+
+        const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
+
+        if (sharedLabels.length > 0) {
+          this.drawConnection(diagram1, diagram2, sharedLabels.length);
+        }
+      }
+    }
+  }
+
+  drawConnection(diagram1, diagram2, sharedCount) {
+    // Calculate center points of both diagrams
+    const x1 = diagram1.position.x + diagram1.size.width / 2;
+    const y1 = diagram1.position.y + diagram1.size.height / 2;
+    const x2 = diagram2.position.x + diagram2.size.width / 2;
+    const y2 = diagram2.position.y + diagram2.size.height / 2;
+
+    // Calculate midpoint for label
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    // Draw connection line
+    this.viewport.append('line')
+      .attr('class', 'connection-line')
+      .attr('x1', x1)
+      .attr('y1', y1)
+      .attr('x2', x2)
+      .attr('y2', y2)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '5,5')
+      .attr('opacity', 0.6);
+
+    // Draw label background
+    const labelText = `${sharedCount} shared`;
+    const labelBg = this.viewport.append('rect')
+      .attr('class', 'connection-label')
+      .attr('x', midX - 30)
+      .attr('y', midY - 10)
+      .attr('width', 60)
+      .attr('height', 20)
+      .attr('rx', 10)
+      .attr('fill', '#ffffff')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1);
+
+    // Draw label text
+    this.viewport.append('text')
+      .attr('class', 'connection-label')
+      .attr('x', midX)
+      .attr('y', midY + 4)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('font-family', 'monospace')
+      .attr('font-weight', '500')
+      .attr('fill', '#64748b')
+      .text(labelText);
   }
 
   showLoading(show) {
