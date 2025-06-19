@@ -191,7 +191,7 @@ body {
 
 .diagram-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px;
   margin-bottom: 8px;
@@ -199,9 +199,11 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
+  min-height: 56px;
 }
 
 .diagram-item:hover {
+  align-items: center;
   background: #f1f5f9;
   border-color: #e2e8f0;
 }
@@ -236,6 +238,12 @@ body {
   font-weight: 500;
   color: #1e293b;
   margin-bottom: 4px;
+  /* Elipsis */
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.diagram-item:hover .name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -248,12 +256,15 @@ body {
 
 .diagram-item .actions {
   display: flex;
+  width: 0px;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity, width 0.2s ease;
 }
 
 .diagram-item:hover .actions {
+  /* TODO - find a better way than hard coding this */
+  width: 52px;
   opacity: 1;
 }
 
