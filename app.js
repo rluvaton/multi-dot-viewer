@@ -54,6 +54,7 @@ class MultiDotViewer {
     this.unselectAllBtn = document.getElementById('unselectAll');
     this.selectTopGraphsBtn = document.getElementById('selectTopGraphs');
     this.deleteUnselectedBtn = document.getElementById('deleteUnselected');
+    this.deleteNonTopGraphsBtn = document.getElementById('deleteNonTopGraphs');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -79,6 +80,7 @@ class MultiDotViewer {
     this.unselectAllBtn.addEventListener('click', () => this.unselectAllDiagrams());
     this.selectTopGraphsBtn.addEventListener('click', async () => await this.selectTopGraphs());
     this.deleteUnselectedBtn.addEventListener('click', () => this.deleteUnselectedDiagrams());
+    this.deleteNonTopGraphsBtn.addEventListener('click', () => this.deleteNonTopGraphs());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -690,13 +692,47 @@ class MultiDotViewer {
       !this.visibleDiagrams.has(diagramId)
     ).length;
 
-    // Enable/disable button based on whether there are unselected diagrams
+    // Enable/disable "Delete Unselected" button based on whether there are unselected diagrams
     if (unselectedCount > 0) {
       this.deleteUnselectedBtn.disabled = false;
       this.deleteUnselectedBtn.title = `Delete ${unselectedCount} unselected diagram${unselectedCount > 1 ? 's' : ''}`;
     } else {
       this.deleteUnselectedBtn.disabled = true;
       this.deleteUnselectedBtn.title = 'No unselected diagrams to delete';
+    }
+
+    // Count non-top graphs (subset diagrams)
+    let nonTopGraphsCount = 0;
+    if (this.diagrams.size > 0) {
+      const diagramArray = Array.from(this.diagrams.values());
+
+      diagramArray.forEach(diagram => {
+        let isSubsetOfAnother = false;
+
+        diagramArray.forEach(otherDiagram => {
+          if (diagram.id !== otherDiagram.id) {
+            const diagramLabels = this.getCachedLabelSet(diagram.id);
+            const otherLabels = this.getCachedLabelSet(otherDiagram.id);
+
+            if (this.isSubsetCached(diagramLabels, otherLabels)) {
+              isSubsetOfAnother = true;
+            }
+          }
+        });
+
+        if (isSubsetOfAnother) {
+          nonTopGraphsCount++;
+        }
+      });
+    }
+
+    // Enable/disable "Delete Non-Top Graphs" button
+    if (nonTopGraphsCount > 0) {
+      this.deleteNonTopGraphsBtn.disabled = false;
+      this.deleteNonTopGraphsBtn.title = `Delete ${nonTopGraphsCount} subset diagram${nonTopGraphsCount > 1 ? 's' : ''}`;
+    } else {
+      this.deleteNonTopGraphsBtn.disabled = true;
+      this.deleteNonTopGraphsBtn.title = 'No subset diagrams to delete';
     }
   }
 
@@ -1050,6 +1086,73 @@ class MultiDotViewer {
 
     // Show confirmation message
     console.info(`Deleted ${unselectedDiagrams.length} unselected diagram${unselectedDiagrams.length > 1 ? 's' : ''}`);
+  }
+
+  deleteNonTopGraphs() {
+    if (this.diagrams.size === 0) {
+      console.info('No diagrams to analyze');
+      return;
+    }
+
+    // Find diagrams that ARE subsets of other diagrams (non-top graphs)
+    const diagramArray = Array.from(this.diagrams.values());
+    const nonTopGraphs = [];
+
+    // For each diagram, check if it's a subset of any other diagram
+    diagramArray.forEach(diagram => {
+      let isSubsetOfAnother = false;
+
+      // Check against all other diagrams
+      diagramArray.forEach(otherDiagram => {
+        if (diagram.id !== otherDiagram.id) {
+          const diagramLabels = this.getCachedLabelSet(diagram.id);
+          const otherLabels = this.getCachedLabelSet(otherDiagram.id);
+
+          // Check if this diagram is a subset of the other
+          if (this.isSubsetCached(diagramLabels, otherLabels)) {
+            isSubsetOfAnother = true;
+          }
+        }
+      });
+
+      // If this diagram is a subset of another, it's a "non-top graph"
+      if (isSubsetOfAnother) {
+        nonTopGraphs.push(diagram.id);
+      }
+    });
+
+    if (nonTopGraphs.length === 0) {
+      console.info('No non-top graphs found - all diagrams are already top-level');
+      return;
+    }
+
+    // Delete each non-top graph
+    nonTopGraphs.forEach(diagramId => {
+      // Remove from DOM
+      d3.select(`#diagram-${diagramId}`).remove();
+
+      // Remove from diagrams map
+      this.diagrams.delete(diagramId);
+
+      // Remove from visible diagrams set
+      this.visibleDiagrams.delete(diagramId);
+    });
+
+    // Invalidate connection cache since diagrams were removed
+    this.invalidateConnectionCache();
+
+    // Check if we should auto-show connections now that we have fewer diagrams
+    this.checkAutoHideConnections();
+
+    // Update the UI
+    this.updateDiagramList();
+    this.updateDiagramVisibility();
+    if (this.connectionVisibility !== 'none') {
+      this.updateConnections();
+    }
+
+    // Show confirmation message
+    console.info(`Deleted ${nonTopGraphs.length} non-top graph${nonTopGraphs.length > 1 ? 's' : ''} (subset diagrams)`);
   }
 
   async toggleDiagramVisibility(diagramId, isVisible) {
