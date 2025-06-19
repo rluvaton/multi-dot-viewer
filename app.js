@@ -751,27 +751,33 @@ class MultiDotViewer {
   }
 
   showEmptyCanvasMessage() {
-    // Get canvas center
+    // Get canvas center and current transform
     const canvasRect = this.svg.node().getBoundingClientRect();
-    const centerX = canvasRect.width / 2;
-    const centerY = canvasRect.height / 2;
+    const transform = d3.zoomTransform(this.svg.node());
+
+    // Calculate center in viewport coordinates (accounting for zoom/pan)
+    const centerX = (canvasRect.width / 2 - transform.x) / transform.k;
+    const centerY = (canvasRect.height / 2 - transform.y) / transform.k;
 
     // Create message group
     const messageGroup = this.viewport.append('g')
       .attr('class', 'empty-canvas-message')
       .attr('transform', `translate(${centerX}, ${centerY})`);
 
+    // Scale elements based on zoom level for consistent appearance
+    const scale = 1 / transform.k;
+
     // Add background circle
     messageGroup.append('circle')
-      .attr('r', 120)
+      .attr('r', 120 * scale)
       .attr('fill', '#f8fafc')
       .attr('stroke', '#e2e8f0')
-      .attr('stroke-width', 2)
+      .attr('stroke-width', 2 * scale)
       .attr('opacity', 0.9);
 
     // Add icon
     messageGroup.append('g')
-      .attr('transform', 'translate(0, -30)')
+      .attr('transform', `translate(0, ${-30 * scale}) scale(${scale})`)
       .append('svg')
       .attr('width', 48)
       .attr('height', 48)
@@ -790,8 +796,8 @@ class MultiDotViewer {
     // Add main message
     messageGroup.append('text')
       .attr('text-anchor', 'middle')
-      .attr('y', 15)
-      .attr('font-size', '16px')
+      .attr('y', 15 * scale)
+      .attr('font-size', `${16 * scale}px`)
       .attr('font-weight', '600')
       .attr('fill', '#334155')
       .text('No diagrams selected');
@@ -799,8 +805,8 @@ class MultiDotViewer {
     // Add instruction
     messageGroup.append('text')
       .attr('text-anchor', 'middle')
-      .attr('y', 35)
-      .attr('font-size', '14px')
+      .attr('y', 35 * scale)
+      .attr('font-size', `${14 * scale}px`)
       .attr('fill', '#64748b')
       .text('Select diagrams using checkboxes or click "Select All"');
   }
