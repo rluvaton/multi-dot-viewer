@@ -62,8 +62,8 @@ class MultiDotViewer {
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
     this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
     this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
-    this.selectAllBtn.addEventListener('click', () => this.selectAllDiagrams());
-    this.unselectAllBtn.addEventListener('click', () => this.unselectAllDiagrams());
+    this.selectAllBtn.addEventListener('click', async () => await this.selectAllDiagrams());
+    this.unselectAllBtn.addEventListener('click', async () => await this.unselectAllDiagrams());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -169,10 +169,10 @@ class MultiDotViewer {
       if (!this.selectedDiagramId && this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
         this.visibleDiagrams.add(firstDiagram.id);
-        this.selectDiagram(firstDiagram.id, true); // Auto-focus when first loading
+        await this.selectDiagram(firstDiagram.id, true); // Auto-focus when first loading
       }
 
-      this.updateDiagramVisibility();
+      await this.updateDiagramVisibility();
       this.updateConnections();
       this.fitAllDiagrams();
     }
@@ -188,62 +188,27 @@ class MultiDotViewer {
   }
 
   async addDiagram(filename, dotContent) {
-    // Generate SVG from DOT content using Graphviz
-    const svgContent = await this.renderDotToSvg(dotContent);
-
-    // Parse SVG to get actual dimensions
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
-    const svgElement = svgDoc.documentElement;
-
-    let originalWidth = 400;
-    let originalHeight = 300;
-
-    if (svgElement && svgElement.tagName === 'svg') {
-      // Try to get dimensions from various attributes
-      const width = svgElement.getAttribute('width');
-      const height = svgElement.getAttribute('height');
-      const viewBox = svgElement.getAttribute('viewBox');
-
-      if (width && height) {
-        originalWidth = parseFloat(width.replace(/[^\d.]/g, '')) || 400;
-        originalHeight = parseFloat(height.replace(/[^\d.]/g, '')) || 300;
-      } else if (viewBox) {
-        const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
-        originalWidth = vbWidth || 400;
-        originalHeight = vbHeight || 300;
-      }
-    }
-
-    // Calculate container size with padding
-    const padding = 40;
-    const headerHeight = 50;
-    const containerWidth = Math.max(350, originalWidth + padding);
-    const containerHeight = Math.max(250, originalHeight + headerHeight + padding);
-
-    // Extract labels from DOT content
+    // Extract labels from DOT content (lightweight operation)
     const labels = this.extractLabelsFromDot(dotContent);
 
-    // Create diagram data
+    // Create diagram data without rendering SVG yet
     const diagramData = {
       id: this.generateId(),
       filename,
       dotContent,
-      svgContent,
-      originalWidth,
-      originalHeight,
+      svgContent: null, // Will be generated when needed
+      originalWidth: 400, // Default, will be updated when rendered
+      originalHeight: 300, // Default, will be updated when rendered
       position: { ...this.nextDiagramPosition },
-      size: { width: containerWidth, height: containerHeight },
-      labels: labels
+      size: { width: 400, height: 350 }, // Default size, will be updated when rendered
+      labels: labels,
+      isRendered: false // Track if diagram has been rendered
     };
 
     // Add to diagrams map
     this.diagrams.set(diagramData.id, diagramData);
 
-    // Render diagram on canvas
-    this.renderDiagram(diagramData);
-
-    // Calculate next position based on actual diagram size
+    // Calculate next position based on default diagram size
     this.updateNextPosition(diagramData.size.width, diagramData.size.height);
 
     return diagramData;
@@ -374,15 +339,15 @@ class MultiDotViewer {
         event.stopPropagation();
         this.startDiagramDrag(event, diagramData);
       })
-      .on('click', (event) => {
+      .on('click', async (event) => {
         event.stopPropagation();
         if (!this.isDraggingDiagram) {
-          this.selectDiagram(diagramData.id, false);
+          await this.selectDiagram(diagramData.id, false);
         }
       })
-      .on('dblclick', (event) => {
+      .on('dblclick', async (event) => {
         event.stopPropagation();
-        this.focusOnDiagram(diagramData.id);
+        await this.focusOnDiagram(diagramData.id);
       });
   }
 
@@ -410,7 +375,7 @@ class MultiDotViewer {
     }
   }
 
-  selectDiagram(diagramId, shouldAutoFocus = false) {
+  async selectDiagram(diagramId, shouldAutoFocus = false) {
     // Clear previous selection
     this.viewport.selectAll('.diagram-container')
       .select('.diagram-bg')
@@ -446,7 +411,7 @@ class MultiDotViewer {
       this.visibleDiagrams.add(diagramId);
 
       // Update diagram visibility and connections
-      this.updateDiagramVisibility();
+      await this.updateDiagramVisibility();
       this.updateConnections();
 
       // Auto-focus and fit to screen for newly visible diagram
@@ -464,7 +429,7 @@ class MultiDotViewer {
     this.updateDiagramList();
   }
 
-  focusOnDiagram(diagramId) {
+  async focusOnDiagram(diagramId) {
     const diagram = this.diagrams.get(diagramId);
     if (!diagram) return;
 
@@ -472,7 +437,7 @@ class MultiDotViewer {
     const centerY = diagram.position.y + diagram.size.height / 2;
 
     this.animateToPosition(centerX, centerY, 1);
-    this.selectDiagram(diagramId);
+    await this.selectDiagram(diagramId);
   }
 
   updateDiagramList() {
@@ -530,35 +495,35 @@ class MultiDotViewer {
 
         // Add checkbox handler
         const checkbox = item.querySelector(`#checkbox-${id}`);
-        checkbox.addEventListener('change', (e) => {
+        checkbox.addEventListener('change', async (e) => {
           e.stopPropagation();
-          this.toggleDiagramVisibility(id, e.target.checked);
+          await this.toggleDiagramVisibility(id, e.target.checked);
         });
 
         // Add click handlers
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
           if (!e.target.closest('.actions') && !e.target.closest('.diagram-checkbox')) {
-            this.selectDiagram(id, true); // Auto-focus when selecting from sidebar
+            await this.selectDiagram(id, true); // Auto-focus when selecting from sidebar
           }
         });
 
-        item.addEventListener('dblclick', (e) => {
+        item.addEventListener('dblclick', async (e) => {
           if (!e.target.closest('.actions') && !e.target.closest('.diagram-checkbox')) {
-            this.focusOnDiagram(id);
+            await this.focusOnDiagram(id);
           }
         });
 
         // Add action handlers
         item.querySelectorAll('.action-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
+          btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const action = btn.dataset.action;
             const diagramId = btn.dataset.id;
 
             if (action === 'focus') {
-              this.focusOnDiagram(diagramId);
+              await this.focusOnDiagram(diagramId);
             } else if (action === 'delete') {
-              this.deleteDiagram(diagramId);
+              await this.deleteDiagram(diagramId);
             }
           });
         });
@@ -570,7 +535,7 @@ class MultiDotViewer {
     this.diagramCount.textContent = this.diagrams.size;
   }
 
-  deleteDiagram(diagramId) {
+  async deleteDiagram(diagramId) {
     this.viewport.select(`#diagram-${diagramId}`).remove();
     this.diagrams.delete(diagramId);
 
@@ -585,7 +550,7 @@ class MultiDotViewer {
       if (this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
         this.visibleDiagrams.add(firstDiagram.id);
-        this.selectDiagram(firstDiagram.id, true); // Auto-focus when switching after deletion
+        await this.selectDiagram(firstDiagram.id, true); // Auto-focus when switching after deletion
       }
     }
 
@@ -593,7 +558,7 @@ class MultiDotViewer {
     this.visibleDiagrams.delete(diagramId);
 
     this.updateDiagramList();
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     this.updateConnections();
   }
 
@@ -718,14 +683,14 @@ class MultiDotViewer {
     this.updateConnections();
   }
 
-  selectAllDiagrams() {
+  async selectAllDiagrams() {
     // Add all diagrams to visible set
     this.diagrams.forEach((diagram, id) => {
       this.visibleDiagrams.add(id);
     });
 
     // Update UI
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     this.updateConnections();
     this.updateDiagramList();
 
@@ -733,17 +698,17 @@ class MultiDotViewer {
     this.fitAllDiagrams();
   }
 
-  unselectAllDiagrams() {
+  async unselectAllDiagrams() {
     // Clear all diagrams from visible set
     this.visibleDiagrams.clear();
 
     // Update UI
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     this.updateConnections();
     this.updateDiagramList();
   }
 
-  toggleDiagramVisibility(diagramId, isVisible) {
+  async toggleDiagramVisibility(diagramId, isVisible) {
     const wasEmpty = this.visibleDiagrams.size === 0;
 
     if (isVisible) {
@@ -752,31 +717,138 @@ class MultiDotViewer {
       this.visibleDiagrams.delete(diagramId);
     }
 
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     this.updateConnections();
 
     // If this is the first diagram being selected from empty state, focus on it
     if (isVisible && wasEmpty && this.visibleDiagrams.size === 1) {
-      this.focusOnDiagram(diagramId);
+      await this.focusOnDiagram(diagramId);
     }
   }
 
-  updateDiagramVisibility() {
+  async updateDiagramVisibility() {
     // Remove any existing empty state message
     this.svg.select('.empty-canvas-overlay').remove();
 
-    this.diagrams.forEach((diagram, id) => {
+    for (const [id, diagram] of this.diagrams) {
+      const isVisible = this.visibleDiagrams.has(id);
+
+      if (isVisible && !diagram.isRendered) {
+        // Render diagram for the first time when it becomes visible
+        await this.renderDiagramOnDemand(diagram);
+      }
+
       const diagramElement = d3.select(`#diagram-${id}`);
 
       // Only show diagrams that are explicitly checked (in visible set)
-      const isVisible = this.visibleDiagrams.has(id);
-      diagramElement.style('display', isVisible ? 'block' : 'none');
-    });
+      if (diagramElement.node()) {
+        diagramElement.style('display', isVisible ? 'block' : 'none');
+      }
+    }
 
     // Show empty state message if no diagrams are visible and some exist
     if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
       this.showEmptyCanvasMessage();
     }
+  }
+
+  async renderDiagramOnDemand(diagramData) {
+    try {
+      // Generate SVG from DOT content using Graphviz
+      const svgContent = await this.renderDotToSvg(diagramData.dotContent);
+
+      // Parse SVG to get actual dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+      const svgElement = svgDoc.documentElement;
+
+      let originalWidth = 400;
+      let originalHeight = 300;
+
+      if (svgElement && svgElement.tagName === 'svg') {
+        // Try to get dimensions from various attributes
+        const width = svgElement.getAttribute('width');
+        const height = svgElement.getAttribute('height');
+        const viewBox = svgElement.getAttribute('viewBox');
+
+        if (width && height) {
+          originalWidth = parseFloat(width.replace(/[^\d.]/g, '')) || 400;
+          originalHeight = parseFloat(height.replace(/[^\d.]/g, '')) || 300;
+        } else if (viewBox) {
+          const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
+          originalWidth = vbWidth || 400;
+          originalHeight = vbHeight || 300;
+        }
+      }
+
+      // Calculate container size with padding
+      const padding = 40;
+      const headerHeight = 50;
+      const containerWidth = Math.max(350, originalWidth + padding);
+      const containerHeight = Math.max(250, originalHeight + headerHeight + padding);
+
+      // Update diagram data with actual dimensions
+      diagramData.svgContent = svgContent;
+      diagramData.originalWidth = originalWidth;
+      diagramData.originalHeight = originalHeight;
+      diagramData.size = { width: containerWidth, height: containerHeight };
+
+      // Render diagram on canvas
+      this.renderDiagram(diagramData);
+
+      // Mark as rendered
+      diagramData.isRendered = true;
+
+    } catch (error) {
+      console.error(`Error rendering diagram ${diagramData.filename}:`, error);
+      // Create a placeholder for failed diagrams
+      this.renderErrorPlaceholder(diagramData);
+      diagramData.isRendered = true;
+    }
+  }
+
+  renderErrorPlaceholder(diagramData) {
+    const container = this.viewport.append('g')
+      .attr('class', 'diagram-container')
+      .attr('id', `diagram-${diagramData.id}`)
+      .attr('transform', `translate(${diagramData.position.x}, ${diagramData.position.y})`);
+
+    // Background
+    const bg = container.append('rect')
+      .attr('class', 'diagram-bg')
+      .attr('width', diagramData.size.width)
+      .attr('height', diagramData.size.height)
+      .attr('rx', 12)
+      .attr('fill', '#fef2f2')
+      .attr('stroke', '#fecaca')
+      .attr('stroke-width', 1);
+
+    // Error message
+    container.append('text')
+      .attr('x', diagramData.size.width / 2)
+      .attr('y', diagramData.size.height / 2)
+      .attr('text-anchor', 'middle')
+      .style('font-size', '14px')
+      .style('fill', '#dc2626')
+      .text(`Error rendering ${diagramData.filename}`);
+
+    // Add interaction
+    container
+      .style('cursor', 'grab')
+      .on('mousedown', (event) => {
+        event.stopPropagation();
+        this.startDiagramDrag(event, diagramData);
+      })
+      .on('click', async (event) => {
+        event.stopPropagation();
+        if (!this.isDraggingDiagram) {
+          await this.selectDiagram(diagramData.id, false);
+        }
+      })
+      .on('dblclick', async (event) => {
+        event.stopPropagation();
+        await this.focusOnDiagram(diagramData.id);
+      });
   }
 
   showEmptyCanvasMessage() {
