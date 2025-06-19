@@ -377,7 +377,7 @@ class MultiDotViewer {
       .on('click', (event) => {
         event.stopPropagation();
         if (!this.isDraggingDiagram) {
-          this.selectDiagram(diagramData.id, true); // Auto-focus when clicking on canvas
+          this.selectDiagram(diagramData.id, false);
         }
       })
       .on('dblclick', (event) => {
