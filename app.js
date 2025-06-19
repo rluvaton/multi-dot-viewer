@@ -52,6 +52,7 @@ class MultiDotViewer {
     this.selectAllBtn = document.getElementById('selectAll');
     this.unselectAllBtn = document.getElementById('unselectAll');
     this.selectTopGraphsBtn = document.getElementById('selectTopGraphs');
+    this.deleteUnselectedBtn = document.getElementById('deleteUnselected');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -75,6 +76,7 @@ class MultiDotViewer {
     this.selectAllBtn.addEventListener('click', () => this.selectAllDiagrams());
     this.unselectAllBtn.addEventListener('click', () => this.unselectAllDiagrams());
     this.selectTopGraphsBtn.addEventListener('click', () => this.selectTopGraphs());
+    this.deleteUnselectedBtn.addEventListener('click', () => this.deleteUnselectedDiagrams());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -663,6 +665,25 @@ class MultiDotViewer {
     }
 
     this.diagramCount.textContent = this.diagrams.size;
+
+    // Update delete button state
+    this.updateDeleteButtonState();
+  }
+
+  updateDeleteButtonState() {
+    // Count unselected diagrams
+    const unselectedCount = Array.from(this.diagrams.keys()).filter(diagramId =>
+      !this.visibleDiagrams.has(diagramId)
+    ).length;
+
+    // Enable/disable button based on whether there are unselected diagrams
+    if (unselectedCount > 0) {
+      this.deleteUnselectedBtn.disabled = false;
+      this.deleteUnselectedBtn.title = `Delete ${unselectedCount} unselected diagram${unselectedCount > 1 ? 's' : ''}`;
+    } else {
+      this.deleteUnselectedBtn.disabled = true;
+      this.deleteUnselectedBtn.title = 'No unselected diagrams to delete';
+    }
   }
 
   deleteDiagram(diagramId) {
@@ -930,6 +951,49 @@ class MultiDotViewer {
 
     // Show info about what was selected
     console.info(`Selected ${topGraphs.size} top graphs (not subsets of any other graph)`);
+  }
+
+  deleteUnselectedDiagrams() {
+    // Get diagrams that are NOT in the visible set (unselected)
+    const unselectedDiagrams = Array.from(this.diagrams.keys()).filter(diagramId =>
+      !this.visibleDiagrams.has(diagramId)
+    );
+
+    if (unselectedDiagrams.length === 0) {
+      console.info('No unselected diagrams to delete');
+      return;
+    }
+
+    // Confirm deletion with user
+    const confirmMessage = `Are you sure you want to delete ${unselectedDiagrams.length} unselected diagram${unselectedDiagrams.length > 1 ? 's' : ''}? This cannot be undone.`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Delete each unselected diagram
+    unselectedDiagrams.forEach(diagramId => {
+      // Remove from DOM
+      d3.select(`#diagram-${diagramId}`).remove();
+
+      // Remove from diagrams map
+      this.diagrams.delete(diagramId);
+    });
+
+    // Invalidate connection cache since diagrams were removed
+    this.invalidateConnectionCache();
+
+    // Check if we should auto-show connections now that we have fewer diagrams
+    this.checkAutoHideConnections();
+
+    // Update the UI
+    this.updateDiagramList();
+    this.updateDiagramVisibility();
+    if (this.connectionVisibility !== 'none') {
+      this.updateConnections();
+    }
+
+    // Show confirmation message
+    console.info(`Deleted ${unselectedDiagrams.length} unselected diagram${unselectedDiagrams.length > 1 ? 's' : ''}`);
   }
 
   toggleDiagramVisibility(diagramId, isVisible) {
