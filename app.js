@@ -746,15 +746,12 @@ class MultiDotViewer {
     // Remove any existing empty state message
     this.svg.select('.empty-canvas-overlay').remove();
 
-    let hasNewlyRendered = false;
-
     for (const [id, diagram] of this.diagrams) {
       const isVisible = this.visibleDiagrams.has(id);
 
       if (isVisible && !diagram.isRendered) {
         // Render diagram for the first time when it becomes visible
         await this.renderDiagramOnDemand(diagram);
-        hasNewlyRendered = true;
       }
 
       const diagramElement = d3.select(`#diagram-${id}`);
@@ -764,14 +761,6 @@ class MultiDotViewer {
         diagramElement.style('display', isVisible ? 'block' : 'none');
       }
     }
-
-    // If we rendered new diagrams, recalculate positions to avoid overlaps
-    if (hasNewlyRendered) {
-      this.recalculateAllPositions();
-    }
-
-    // Update connections after any position changes
-    this.updateConnections();
 
     // Show empty state message if no diagrams are visible and some exist
     if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
@@ -832,33 +821,6 @@ class MultiDotViewer {
       this.renderErrorPlaceholder(diagramData);
       diagramData.isRendered = true;
     }
-  }
-
-  // Recalculate positions for all diagrams to avoid overlaps
-  recalculateAllPositions() {
-    // Reset position tracking
-    this.nextDiagramPosition = { x: 50, y: 50 };
-    this.currentRowMaxHeight = 0;
-    this.currentRowStartY = 50;
-
-    // Get all diagrams in order and recalculate their positions
-    const diagramsArray = Array.from(this.diagrams.values());
-
-    diagramsArray.forEach((diagram, index) => {
-      // Update diagram position
-      diagram.position = { ...this.nextDiagramPosition };
-
-      // Update the DOM element position if it's rendered
-      if (diagram.isRendered) {
-        const element = d3.select(`#diagram-${diagram.id}`);
-        if (element.node()) {
-          element.attr('transform', `translate(${diagram.position.x}, ${diagram.position.y})`);
-        }
-      }
-
-      // Calculate next position using actual size if rendered, or default size if not
-      this.updateNextPosition(diagram.size.width, diagram.size.height);
-    });
   }
 
   renderErrorPlaceholder(diagramData) {
