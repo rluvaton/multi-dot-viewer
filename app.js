@@ -1010,8 +1010,6 @@ class MultiDotViewer {
     if (isVisible && wasEmpty && this.visibleDiagrams.size === 1) {
       this.focusOnDiagram(diagramId);
     }
-
-    this.updateDeleteButtonState();
   }
 
   updateDiagramVisibility() {
