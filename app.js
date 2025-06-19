@@ -377,7 +377,7 @@ class MultiDotViewer {
       .on('click', (event) => {
         event.stopPropagation();
         if (!this.isDraggingDiagram) {
-          this.selectDiagram(diagramData.id);
+          this.selectDiagram(diagramData.id, true); // Auto-focus when clicking on canvas
         }
       })
       .on('dblclick', (event) => {
@@ -426,19 +426,21 @@ class MultiDotViewer {
     this.activeDiagram = diagramId;
     this.selectedDiagramId = diagramId;
 
-    // Update diagram visibility if in focus mode
-    if (this.focusMode) {
-      this.updateDiagramVisibility();
-      this.updateConnections();
+    // Clear all visible diagrams and show only the selected one
+    this.visibleDiagrams.clear();
+    this.visibleDiagrams.add(diagramId);
 
-      // Auto-focus on the selected diagram in focus mode only if requested
-      if (shouldAutoFocus) {
-        const diagram = this.diagrams.get(diagramId);
-        if (diagram) {
-          const centerX = diagram.position.x + diagram.size.width / 2;
-          const centerY = diagram.position.y + diagram.size.height / 2;
-          this.animateToPosition(centerX, centerY, 1);
-        }
+    // Update diagram visibility and connections
+    this.updateDiagramVisibility();
+    this.updateConnections();
+
+    // Auto-focus on the selected diagram
+    if (shouldAutoFocus) {
+      const diagram = this.diagrams.get(diagramId);
+      if (diagram) {
+        const centerX = diagram.position.x + diagram.size.width / 2;
+        const centerY = diagram.position.y + diagram.size.height / 2;
+        this.animateToPosition(centerX, centerY, 1);
       }
     }
 
