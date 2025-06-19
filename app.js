@@ -116,10 +116,22 @@ class MultiDotViewer {
 
   async processDotFiles(dotFiles) {
     let successCount = 0;
+    let duplicateCount = 0;
     let totalFiles = Object.keys(dotFiles).length;
 
     for (const [filename, content] of Object.entries(dotFiles)) {
       try {
+        // Check if diagram with this filename already exists
+        const existingDiagram = Array.from(this.diagrams.values()).find(
+          diagram => diagram.filename === filename
+        );
+
+        if (existingDiagram) {
+          console.log(`Skipping duplicate file: ${filename}`);
+          duplicateCount++;
+          continue;
+        }
+
         await this.addDiagram(filename, content);
         successCount++;
       } catch (error) {
@@ -132,8 +144,13 @@ class MultiDotViewer {
       this.fitAllDiagrams();
     }
 
-    if (successCount < totalFiles) {
-      this.showError(`Successfully loaded ${successCount} out of ${totalFiles} diagrams.`);
+    // Show appropriate message based on results
+    if (duplicateCount > 0 && successCount > 0) {
+      this.showInfo(`Added ${successCount} new diagrams. Skipped ${duplicateCount} duplicate files.`);
+    } else if (duplicateCount > 0 && successCount === 0) {
+      this.showInfo(`No new diagrams added. All ${duplicateCount} files were already loaded.`);
+    } else if (successCount < totalFiles - duplicateCount) {
+      this.showError(`Successfully loaded ${successCount} out of ${totalFiles - duplicateCount} new diagrams.`);
     }
   }
 
@@ -622,6 +639,12 @@ class MultiDotViewer {
   showError(message) {
     // Simple error display - could be enhanced with a proper notification system
     console.error(message);
+    alert(message);
+  }
+
+  showInfo(message) {
+    // Simple info display - could be enhanced with a proper notification system
+    console.info(message);
     alert(message);
   }
 }
