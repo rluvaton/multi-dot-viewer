@@ -427,6 +427,14 @@ class MultiDotViewer {
     if (this.focusMode) {
       this.updateDiagramVisibility();
       this.updateConnections();
+
+      // Auto-focus on the selected diagram in focus mode
+      const diagram = this.diagrams.get(diagramId);
+      if (diagram) {
+        const centerX = diagram.position.x + diagram.size.width / 2;
+        const centerY = diagram.position.y + diagram.size.height / 2;
+        this.animateToPosition(centerX, centerY, 1);
+      }
     }
 
     this.updateDiagramList();
