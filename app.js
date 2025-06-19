@@ -11,6 +11,8 @@ class MultiDotViewer {
     this.hasSampleDiagrams = false;
     this.sidebarWidth = 280;
     this.isResizing = false;
+    this.currentRowMaxHeight = 0;
+    this.currentRowStartY = 50;
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -212,7 +214,7 @@ class MultiDotViewer {
     this.renderDiagram(diagramData);
 
     // Calculate next position based on actual diagram size
-    this.updateNextPosition(diagramData.size.width);
+    this.updateNextPosition(diagramData.size.width, diagramData.size.height);
 
     return diagramData;
   }
@@ -354,10 +356,13 @@ class MultiDotViewer {
       });
   }
 
-  updateNextPosition(lastDiagramWidth = 400) {
+  updateNextPosition(lastDiagramWidth = 400, lastDiagramHeight = 300) {
     // Get canvas dimensions for proper wrapping
     const canvasRect = this.svg.node().getBoundingClientRect();
     const maxWidth = canvasRect.width - 100; // Leave some margin
+
+    // Track the maximum height in current row
+    this.currentRowMaxHeight = Math.max(this.currentRowMaxHeight, lastDiagramHeight);
 
     // Use actual diagram width plus padding for spacing
     const spacing = lastDiagramWidth + 50; // 50px gap between diagrams
@@ -365,8 +370,13 @@ class MultiDotViewer {
 
     // Check if we need to wrap to next row
     if (this.nextDiagramPosition.x + 400 > maxWidth) { // 400 is avg diagram width
+      // Move to next row using the actual height of the tallest diagram in current row
+      this.currentRowStartY += this.currentRowMaxHeight + 50; // 50px vertical gap
       this.nextDiagramPosition.x = 50;
-      this.nextDiagramPosition.y += this.diagramSpacing;
+      this.nextDiagramPosition.y = this.currentRowStartY;
+
+      // Reset row height tracking for new row
+      this.currentRowMaxHeight = 0;
     }
   }
 
@@ -506,6 +516,8 @@ class MultiDotViewer {
 
     // Reset diagram position for new ones
     this.nextDiagramPosition = { x: 50, y: 50 };
+    this.currentRowMaxHeight = 0;
+    this.currentRowStartY = 50;
 
     // Update the UI
     this.updateDiagramList();
