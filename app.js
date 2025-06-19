@@ -691,8 +691,16 @@ class MultiDotViewer {
     this.focusMode = event.target.checked;
 
     if (this.focusMode) {
-      // If no diagram is selected, select the first one
-      if (!this.selectedDiagramId && this.diagrams.size > 0) {
+      if (this.selectedDiagramId) {
+        // If there's already a selected diagram, focus on it
+        const diagram = this.diagrams.get(this.selectedDiagramId);
+        if (diagram) {
+          const centerX = diagram.position.x + diagram.size.width / 2;
+          const centerY = diagram.position.y + diagram.size.height / 2;
+          this.animateToPosition(centerX, centerY, 1);
+        }
+      } else if (this.diagrams.size > 0) {
+        // If no diagram is selected, select and focus on the first one
         const firstDiagram = this.diagrams.values().next().value;
         this.selectDiagram(firstDiagram.id, true); // Auto-focus when enabling focus mode
       }
