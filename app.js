@@ -244,6 +244,36 @@ class MultiDotViewer {
     return id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
   }
 
+  checkAutoHideConnections() {
+    const diagramCount = this.diagrams.size;
+    const shouldHideConnections = diagramCount > 10;
+
+    // Only change if the state needs to change to avoid unnecessary updates
+    if (shouldHideConnections && !this.hideConnections) {
+      // Auto-enable hide connections
+      this.hideConnections = true;
+      this.hideConnectionsBtn.classList.add('btn-active');
+      this.hideConnectionsBtn.title = 'Show connections (auto-hidden due to diagram count)';
+      this.hideAllConnections();
+
+      // Show a brief notification
+      console.info(`Auto-hiding connections due to ${diagramCount} diagrams for better performance`);
+    } else if (!shouldHideConnections && this.hideConnections && diagramCount <= 10) {
+      // Auto-disable hide connections when count drops to 10 or below
+      // But only if it was auto-hidden (not manually hidden by user)
+      if (this.hideConnectionsBtn.title.includes('auto-hidden')) {
+        this.hideConnections = false;
+        this.hideConnectionsBtn.classList.remove('btn-active');
+        this.hideConnectionsBtn.title = 'Hide all connections';
+
+        // Show connections since we're auto-enabling them
+        this.updateConnections();
+
+        console.info(`Auto-showing connections with ${diagramCount} diagrams`);
+      }
+    }
+  }
+
   async addDiagram(filename, dotContent) {
     // Generate SVG from DOT content using Graphviz
     const svgContent = await this.renderDotToSvg(dotContent);
@@ -299,6 +329,9 @@ class MultiDotViewer {
 
     // Invalidate connection cache since we added a new diagram
     this.invalidateConnectionCache();
+
+    // Auto-enable hide connections when we have more than 10 diagrams
+    this.checkAutoHideConnections();
 
     // Render diagram on canvas
     this.renderDiagram(diagramData);
@@ -637,6 +670,9 @@ class MultiDotViewer {
     // Invalidate connection cache since we removed a diagram
     this.invalidateConnectionCache();
 
+    // Check if we should auto-disable hide connections
+    this.checkAutoHideConnections();
+
     if (this.activeDiagram === diagramId) {
       this.activeDiagram = null;
     }
@@ -677,6 +713,9 @@ class MultiDotViewer {
 
     // Clear all caches
     this.invalidateConnectionCache();
+
+    // Check if we should auto-disable hide connections
+    this.checkAutoHideConnections();
 
     // Reset active diagram
     this.activeDiagram = null;
@@ -767,7 +806,12 @@ class MultiDotViewer {
     // Update button appearance
     if (this.hideConnections) {
       this.hideConnectionsBtn.classList.add('btn-active');
-      this.hideConnectionsBtn.title = 'Show connections';
+      // Distinguish between manual and auto-hide in the title
+      if (this.diagrams.size > 10) {
+        this.hideConnectionsBtn.title = 'Show connections (manually hidden)';
+      } else {
+        this.hideConnectionsBtn.title = 'Show connections';
+      }
       // Hide all connections immediately
       this.hideAllConnections();
     } else {
