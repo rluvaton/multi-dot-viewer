@@ -826,13 +826,20 @@ class MultiDotViewer {
       .attr('fill', '#334155')
       .text('No diagrams selected');
 
-    // Instruction
+    // Instruction - split into multiple lines
     overlayGroup.append('text')
       .attr('text-anchor', 'middle')
       .attr('y', 35)
       .attr('font-size', '13px')
       .attr('fill', '#64748b')
-      .text('Select diagrams using checkboxes or click "Select All"');
+      .text('Select diagrams using checkboxes');
+
+    overlayGroup.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('y', 50)
+      .attr('font-size', '13px')
+      .attr('fill', '#64748b')
+      .text('or click "Select All"');
   }
 
   animateToPosition(x, y, scale = this.currentScale) {
