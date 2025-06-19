@@ -17,6 +17,7 @@ class MultiDotViewer {
     this.draggedDiagram = null;
     this.dragOffset = { x: 0, y: 0 };
     this.isDraggingDiagram = false;
+    this.hideTransitive = false; // Toggle for hiding transitive connections
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -35,6 +36,7 @@ class MultiDotViewer {
     this.zoomInBtn = document.getElementById('zoomIn');
     this.zoomOutBtn = document.getElementById('zoomOut');
     this.zoomLevel = document.getElementById('zoomLevel');
+    this.hideTransitiveBtn = document.getElementById('hideTransitive');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -52,6 +54,7 @@ class MultiDotViewer {
     this.fitAllBtn.addEventListener('click', () => this.fitAllDiagrams());
     this.zoomInBtn.addEventListener('click', () => this.zoomIn());
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
+    this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -597,6 +600,22 @@ class MultiDotViewer {
     );
   }
 
+  toggleTransitiveConnections() {
+    this.hideTransitive = !this.hideTransitive;
+
+    // Update button appearance
+    if (this.hideTransitive) {
+      this.hideTransitiveBtn.classList.add('btn-active');
+      this.hideTransitiveBtn.title = 'Show transitive connections';
+    } else {
+      this.hideTransitiveBtn.classList.remove('btn-active');
+      this.hideTransitiveBtn.title = 'Hide transitive connections';
+    }
+
+    // Redraw connections
+    this.updateConnections();
+  }
+
   animateToPosition(x, y, scale = this.currentScale) {
     const svgRect = this.svg.node().getBoundingClientRect();
     const transform = d3.zoomIdentity
@@ -732,8 +751,9 @@ class MultiDotViewer {
     this.viewport.selectAll('.connection-arrow').remove();
 
     const diagrams = Array.from(this.diagrams.values());
+    const connections = [];
 
-    // Compare all pairs of diagrams
+    // First pass: identify all subset relationships
     for (let i = 0; i < diagrams.length; i++) {
       for (let j = i + 1; j < diagrams.length; j++) {
         const diagram1 = diagrams[i];
@@ -748,17 +768,87 @@ class MultiDotViewer {
 
           if (diagram1IsSubsetOfDiagram2) {
             // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
-            this.drawSubsetArrow(diagram2, diagram1);
+            connections.push({
+              type: 'subset',
+              from: diagram2,
+              to: diagram1,
+              fromId: diagram2.id,
+              toId: diagram1.id
+            });
           } else if (diagram2IsSubsetOfDiagram1) {
             // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
-            this.drawSubsetArrow(diagram1, diagram2);
+            connections.push({
+              type: 'subset',
+              from: diagram1,
+              to: diagram2,
+              fromId: diagram1.id,
+              toId: diagram2.id
+            });
           } else {
             // Partial overlap -> regular connection line
-            this.drawConnection(diagram1, diagram2, sharedLabels.length);
+            connections.push({
+              type: 'shared',
+              diagram1: diagram1,
+              diagram2: diagram2,
+              sharedCount: sharedLabels.length
+            });
           }
         }
       }
     }
+
+    // Filter out transitive connections if the toggle is enabled
+    let connectionsToRender = connections;
+    if (this.hideTransitive) {
+      connectionsToRender = this.filterTransitiveConnections(connections);
+    }
+
+    // Render the connections
+    connectionsToRender.forEach(connection => {
+      if (connection.type === 'subset') {
+        this.drawSubsetArrow(connection.from, connection.to);
+      } else if (connection.type === 'shared') {
+        this.drawConnection(connection.diagram1, connection.diagram2, connection.sharedCount);
+      }
+    });
+  }
+
+  filterTransitiveConnections(connections) {
+    // Filter out transitive subset relationships
+    const subsetConnections = connections.filter(conn => conn.type === 'subset');
+    const sharedConnections = connections.filter(conn => conn.type === 'shared');
+
+    // For each subset connection, check if it's transitive
+    const filteredSubsetConnections = subsetConnections.filter(connection => {
+      const { fromId, toId } = connection;
+
+      // Check if there's an intermediate diagram that makes this connection transitive
+      // i.e., if A -> B and B -> C, then A -> C is transitive
+      const isTransitive = subsetConnections.some(otherConnection => {
+        if (otherConnection === connection) return false; // Don't compare with self
+
+        // Check if there's a path: from -> intermediate -> to
+        const hasIntermediatePath = subsetConnections.some(intermediateConnection => {
+          return (
+            // Path: from -> intermediate -> to
+            (otherConnection.fromId === fromId &&
+              intermediateConnection.fromId === otherConnection.toId &&
+              intermediateConnection.toId === toId) ||
+            // Or: intermediate -> from and to -> intermediate (reverse direction)
+            (otherConnection.toId === fromId &&
+              intermediateConnection.toId === otherConnection.fromId &&
+              intermediateConnection.fromId === toId)
+          );
+        });
+
+        return hasIntermediatePath;
+      });
+
+      return !isTransitive;
+    });
+
+    // Return filtered subset connections plus all shared connections
+    return [...filteredSubsetConnections, ...sharedConnections];
   }
 
   isSubset(setA, setB) {
@@ -1033,4 +1123,4 @@ class MultiDotViewer {
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   new MultiDotViewer();
-}); 
+});

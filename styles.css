@@ -137,6 +137,12 @@ body {
   border-color: #cbd5e1;
 }
 
+.btn-active {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  border-color: #3b82f6 !important;
+}
+
 /* Sidebar */
 .sidebar {
   /* Removed - now handled by .sidebar-content */
