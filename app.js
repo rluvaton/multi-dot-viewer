@@ -14,6 +14,9 @@ class MultiDotViewer {
     this.currentRowMaxHeight = 0;
     this.currentRowStartY = 50;
     this.connections = new Map(); // Store diagram connections
+    this.draggedDiagram = null;
+    this.dragOffset = { x: 0, y: 0 };
+    this.isDraggingDiagram = false;
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -345,10 +348,16 @@ class MultiDotViewer {
 
     // Add interaction
     container
-      .style('cursor', 'pointer')
+      .style('cursor', 'grab')
+      .on('mousedown', (event) => {
+        event.stopPropagation();
+        this.startDiagramDrag(event, diagramData);
+      })
       .on('click', (event) => {
         event.stopPropagation();
-        this.selectDiagram(diagramData.id);
+        if (!this.isDraggingDiagram) {
+          this.selectDiagram(diagramData.id);
+        }
       })
       .on('dblclick', (event) => {
         event.stopPropagation();
@@ -835,6 +844,76 @@ class MultiDotViewer {
   setSidebarWidth(width) {
     this.sidebarWidth = width;
     this.appContainer.style.gridTemplateColumns = `${width}px 1fr`;
+  }
+
+  startDiagramDrag(event, diagramData) {
+    this.isDraggingDiagram = true;
+    this.draggedDiagram = diagramData;
+
+    // Get the current transform of the viewport
+    const transform = d3.zoomTransform(this.svg.node());
+
+    // Calculate mouse position in viewport coordinates
+    const mouseX = (event.clientX - transform.x) / transform.k;
+    const mouseY = (event.clientY - transform.y) / transform.k;
+
+    // Calculate offset from diagram top-left corner
+    this.dragOffset = {
+      x: mouseX - diagramData.position.x,
+      y: mouseY - diagramData.position.y
+    };
+
+    // Change cursor and prevent selection
+    d3.select(`#diagram-${diagramData.id}`).style('cursor', 'grabbing');
+    document.body.style.userSelect = 'none';
+
+    // Add global mouse event listeners
+    document.addEventListener('mousemove', this.handleDiagramDrag.bind(this));
+    document.addEventListener('mouseup', this.endDiagramDrag.bind(this));
+  }
+
+  handleDiagramDrag(event) {
+    if (!this.isDraggingDiagram || !this.draggedDiagram) return;
+
+    // Get the current transform of the viewport
+    const transform = d3.zoomTransform(this.svg.node());
+
+    // Calculate new position in viewport coordinates
+    const mouseX = (event.clientX - transform.x) / transform.k;
+    const mouseY = (event.clientY - transform.y) / transform.k;
+
+    const newX = mouseX - this.dragOffset.x;
+    const newY = mouseY - this.dragOffset.y;
+
+    // Update diagram position
+    this.draggedDiagram.position.x = newX;
+    this.draggedDiagram.position.y = newY;
+
+    // Update visual position
+    d3.select(`#diagram-${this.draggedDiagram.id}`)
+      .attr('transform', `translate(${newX}, ${newY})`);
+
+    // Update connections in real-time
+    this.updateConnections();
+  }
+
+  endDiagramDrag() {
+    if (!this.isDraggingDiagram) return;
+
+    // Reset cursor
+    if (this.draggedDiagram) {
+      d3.select(`#diagram-${this.draggedDiagram.id}`).style('cursor', 'grab');
+    }
+    document.body.style.userSelect = '';
+
+    // Clean up
+    this.isDraggingDiagram = false;
+    this.draggedDiagram = null;
+    this.dragOffset = { x: 0, y: 0 };
+
+    // Remove global mouse event listeners
+    document.removeEventListener('mousemove', this.handleDiagramDrag.bind(this));
+    document.removeEventListener('mouseup', this.endDiagramDrag.bind(this));
   }
 }
 
