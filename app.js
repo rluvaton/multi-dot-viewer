@@ -18,6 +18,7 @@ class MultiDotViewer {
     this.dragOffset = { x: 0, y: 0 };
     this.isDraggingDiagram = false;
     this.hideTransitive = false; // Toggle for hiding transitive connections
+    this.minSharedLabels = 0; // Minimum shared labels to show connections
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -37,6 +38,7 @@ class MultiDotViewer {
     this.zoomOutBtn = document.getElementById('zoomOut');
     this.zoomLevel = document.getElementById('zoomLevel');
     this.hideTransitiveBtn = document.getElementById('hideTransitive');
+    this.minSharedLabelsInput = document.getElementById('minSharedLabels');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -55,6 +57,7 @@ class MultiDotViewer {
     this.zoomInBtn.addEventListener('click', () => this.zoomIn());
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
     this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
+    this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -616,6 +619,17 @@ class MultiDotViewer {
     this.updateConnections();
   }
 
+  updateMinSharedLabels(event) {
+    const value = parseInt(event.target.value) || 0;
+    this.minSharedLabels = Math.max(0, value); // Ensure non-negative
+
+    // Update the input value to reflect the processed value
+    event.target.value = this.minSharedLabels;
+
+    // Redraw connections
+    this.updateConnections();
+  }
+
   animateToPosition(x, y, scale = this.currentScale) {
     const svgRect = this.svg.node().getBoundingClientRect();
     const transform = d3.zoomIdentity
@@ -797,10 +811,24 @@ class MultiDotViewer {
       }
     }
 
-    // Filter out transitive connections if the toggle is enabled
+    // Filter connections based on settings
     let connectionsToRender = connections;
+
+    // Filter out transitive connections if the toggle is enabled
     if (this.hideTransitive) {
-      connectionsToRender = this.filterTransitiveConnections(connections);
+      connectionsToRender = this.filterTransitiveConnections(connectionsToRender);
+    }
+
+    // Filter by minimum shared labels (but keep all subset connections)
+    if (this.minSharedLabels > 0) {
+      connectionsToRender = connectionsToRender.filter(connection => {
+        // Always keep subset connections regardless of shared count
+        if (connection.type === 'subset') {
+          return true;
+        }
+        // For shared connections, check if they meet the minimum threshold
+        return connection.sharedCount > this.minSharedLabels;
+      });
     }
 
     // Render the connections
