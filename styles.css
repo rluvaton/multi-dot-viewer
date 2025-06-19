@@ -191,7 +191,7 @@ body {
 
 .diagram-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 12px;
   margin-bottom: 8px;
