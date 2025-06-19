@@ -738,6 +738,9 @@ class MultiDotViewer {
   }
 
   updateDiagramVisibility() {
+    // Remove any existing empty state message
+    this.viewport.select('.empty-canvas-message').remove();
+
     this.diagrams.forEach((diagram, id) => {
       const diagramElement = d3.select(`#diagram-${id}`);
 
@@ -746,6 +749,66 @@ class MultiDotViewer {
       const isVisible = this.visibleDiagrams.size === 0 || this.visibleDiagrams.has(id);
       diagramElement.style('display', isVisible ? 'block' : 'none');
     });
+
+    // Show empty state message if no diagrams are visible and some exist
+    if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
+      this.showEmptyCanvasMessage();
+    }
+  }
+
+  showEmptyCanvasMessage() {
+    // Get canvas center
+    const canvasRect = this.svg.node().getBoundingClientRect();
+    const centerX = canvasRect.width / 2;
+    const centerY = canvasRect.height / 2;
+
+    // Create message group
+    const messageGroup = this.viewport.append('g')
+      .attr('class', 'empty-canvas-message')
+      .attr('transform', `translate(${centerX}, ${centerY})`);
+
+    // Add background circle
+    messageGroup.append('circle')
+      .attr('r', 120)
+      .attr('fill', '#f8fafc')
+      .attr('stroke', '#e2e8f0')
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.9);
+
+    // Add icon
+    messageGroup.append('g')
+      .attr('transform', 'translate(0, -30)')
+      .append('svg')
+      .attr('width', 48)
+      .attr('height', 48)
+      .attr('x', -24)
+      .attr('y', -24)
+      .attr('viewBox', '0 0 24 24')
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1.5)
+      .html(`
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        <path d="M9 9h6v6H9z"></path>
+        <path d="M16 16l4 4"></path>
+      `);
+
+    // Add main message
+    messageGroup.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('y', 15)
+      .attr('font-size', '16px')
+      .attr('font-weight', '600')
+      .attr('fill', '#334155')
+      .text('No diagrams selected');
+
+    // Add instruction
+    messageGroup.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('y', 35)
+      .attr('font-size', '14px')
+      .attr('fill', '#64748b')
+      .text('Select diagrams using checkboxes or click "Select All"');
   }
 
   animateToPosition(x, y, scale = this.currentScale) {
@@ -877,10 +940,11 @@ class MultiDotViewer {
   }
 
   updateConnections() {
-    // Clear existing connections
+    // Clear existing connections and empty state message
     this.viewport.selectAll('.connection-line').remove();
     this.viewport.selectAll('.connection-label').remove();
     this.viewport.selectAll('.connection-arrow').remove();
+    this.viewport.selectAll('.empty-canvas-message').remove();
 
     const diagrams = Array.from(this.diagrams.values());
     const connections = [];
@@ -964,6 +1028,11 @@ class MultiDotViewer {
         this.drawConnection(connection.diagram1, connection.diagram2, connection.sharedCount);
       }
     });
+
+    // Show empty state message if no diagrams are visible and some exist
+    if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
+      this.showEmptyCanvasMessage();
+    }
   }
 
   filterTransitiveConnections(connections) {
