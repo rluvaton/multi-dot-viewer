@@ -81,6 +81,9 @@ class MultiDotViewer {
     this.showLoading(true);
 
     try {
+      // Clear existing diagrams when loading new files
+      this.clearAllDiagrams();
+
       const dotFiles = {};
 
       for (const file of files) {
@@ -453,6 +456,23 @@ class MultiDotViewer {
       this.activeDiagram = null;
     }
 
+    this.updateDiagramList();
+  }
+
+  clearAllDiagrams() {
+    // Remove all diagram elements from the SVG
+    this.viewport.selectAll('.diagram-container').remove();
+
+    // Clear the diagrams map
+    this.diagrams.clear();
+
+    // Reset active diagram
+    this.activeDiagram = null;
+
+    // Reset diagram position for new ones
+    this.nextDiagramPosition = { x: 50, y: 50 };
+
+    // Update the UI
     this.updateDiagramList();
   }
 
