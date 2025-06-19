@@ -382,14 +382,26 @@ class MultiDotViewer {
 
   selectDiagram(diagramId) {
     // Clear previous selection
-    this.viewport.selectAll('.diagram-container')
-      .select('.diagram-bg')
-      .attr('stroke', '#e2e8f0')
-      .attr('stroke-width', 1);
+    this.viewport.selectAll('.diagram-container').each(function () {
+      const container = d3.select(this);
+      // Reset main background
+      container.select('.diagram-bg')
+        .attr('stroke', '#e2e8f0')
+        .attr('stroke-width', 1);
+      // Reset header
+      container.select('.diagram-header rect:first-child')
+        .attr('stroke', '#e2e8f0')
+        .attr('stroke-width', 1);
+    });
 
     // Highlight selected diagram
-    this.viewport.select(`#diagram-${diagramId}`)
-      .select('.diagram-bg')
+    const selectedContainer = this.viewport.select(`#diagram-${diagramId}`);
+    // Highlight main background
+    selectedContainer.select('.diagram-bg')
+      .attr('stroke', '#3b82f6')
+      .attr('stroke-width', 2);
+    // Highlight header to match
+    selectedContainer.select('.diagram-header rect:first-child')
       .attr('stroke', '#3b82f6')
       .attr('stroke-width', 2);
 
