@@ -22,6 +22,12 @@ class MultiDotViewer {
     this.selectedDiagramId = null; // Currently active diagram (for highlighting)
     this.visibleDiagrams = new Set(); // Set of diagram IDs visible (always active now)
 
+    // Performance caching for connections
+    this.connectionCache = new Map(); // Cache for diagram pair relationships
+    this.labelSetCache = new Map(); // Cache for label Sets to avoid recreation
+    this.allConnections = []; // Cache for all possible connections
+    this.connectionsCacheValid = false; // Flag to track if cache needs refresh
+
     this.initializeElements();
     this.initializeEventListeners();
     this.initializeCanvas();
@@ -187,6 +193,28 @@ class MultiDotViewer {
     }
   }
 
+  // Cache management methods
+  invalidateConnectionCache() {
+    this.connectionCache.clear();
+    this.labelSetCache.clear();
+    this.allConnections = [];
+    this.connectionsCacheValid = false;
+  }
+
+  getCachedLabelSet(diagramId) {
+    if (!this.labelSetCache.has(diagramId)) {
+      const diagram = this.diagrams.get(diagramId);
+      if (diagram) {
+        this.labelSetCache.set(diagramId, new Set(diagram.labels));
+      }
+    }
+    return this.labelSetCache.get(diagramId);
+  }
+
+  getCachedConnectionKey(id1, id2) {
+    return id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
+  }
+
   async addDiagram(filename, dotContent) {
     // Generate SVG from DOT content using Graphviz
     const svgContent = await this.renderDotToSvg(dotContent);
@@ -239,6 +267,9 @@ class MultiDotViewer {
 
     // Add to diagrams map
     this.diagrams.set(diagramData.id, diagramData);
+
+    // Invalidate connection cache since we added a new diagram
+    this.invalidateConnectionCache();
 
     // Render diagram on canvas
     this.renderDiagram(diagramData);
@@ -574,6 +605,9 @@ class MultiDotViewer {
     this.viewport.select(`#diagram-${diagramId}`).remove();
     this.diagrams.delete(diagramId);
 
+    // Invalidate connection cache since we removed a diagram
+    this.invalidateConnectionCache();
+
     if (this.activeDiagram === diagramId) {
       this.activeDiagram = null;
     }
@@ -607,6 +641,9 @@ class MultiDotViewer {
 
     // Clear the diagrams map
     this.diagrams.clear();
+
+    // Clear all caches
+    this.invalidateConnectionCache();
 
     // Reset active diagram
     this.activeDiagram = null;
@@ -999,6 +1036,30 @@ class MultiDotViewer {
     return shared;
   }
 
+  // Optimized cached version for diagram pairs
+  calculateSharedLabelsForDiagrams(diagram1, diagram2) {
+    const cacheKey = this.getCachedConnectionKey(diagram1.id, diagram2.id);
+
+    if (this.connectionCache.has(cacheKey)) {
+      return this.connectionCache.get(cacheKey).sharedLabels;
+    }
+
+    // Calculate and cache the result
+    const set1 = this.getCachedLabelSet(diagram1.id);
+    const shared = diagram2.labels.filter(label => set1.has(label));
+
+    // Cache the full relationship data
+    const relationshipData = {
+      sharedLabels: shared,
+      sharedCount: shared.length,
+      diagram1IsSubset: shared.length > 0 && this.isSubsetCached(diagram1.labels, diagram2.labels),
+      diagram2IsSubset: shared.length > 0 && this.isSubsetCached(diagram2.labels, diagram1.labels)
+    };
+
+    this.connectionCache.set(cacheKey, relationshipData);
+    return shared;
+  }
+
   updateConnections() {
     // Clear existing connections and empty state message
     this.viewport.selectAll('.connection-line').remove();
@@ -1006,58 +1067,22 @@ class MultiDotViewer {
     this.viewport.selectAll('.connection-arrow').remove();
     this.svg.select('.empty-canvas-overlay').remove();
 
-    const diagrams = Array.from(this.diagrams.values());
-    const connections = [];
-
-    // First pass: identify all subset relationships
-    // Only show connections between visible diagrams
-    let diagramsToProcess = diagrams.filter(diagram => this.visibleDiagrams.has(diagram.id));
-
-    for (let i = 0; i < diagramsToProcess.length; i++) {
-      for (let j = i + 1; j < diagramsToProcess.length; j++) {
-        const diagram1 = diagramsToProcess[i];
-        const diagram2 = diagramsToProcess[j];
-
-        const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
-
-        if (sharedLabels.length > 0) {
-          // Check for subset relationships
-          const diagram1IsSubsetOfDiagram2 = this.isSubset(diagram1.labels, diagram2.labels);
-          const diagram2IsSubsetOfDiagram1 = this.isSubset(diagram2.labels, diagram1.labels);
-
-          if (diagram1IsSubsetOfDiagram2) {
-            // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
-            connections.push({
-              type: 'subset',
-              from: diagram2,
-              to: diagram1,
-              fromId: diagram2.id,
-              toId: diagram1.id
-            });
-          } else if (diagram2IsSubsetOfDiagram1) {
-            // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
-            connections.push({
-              type: 'subset',
-              from: diagram1,
-              to: diagram2,
-              fromId: diagram1.id,
-              toId: diagram2.id
-            });
-          } else {
-            // Partial overlap -> regular connection line
-            connections.push({
-              type: 'shared',
-              diagram1: diagram1,
-              diagram2: diagram2,
-              sharedCount: sharedLabels.length
-            });
-          }
-        }
-      }
+    // Build all connections cache if needed
+    if (!this.connectionsCacheValid) {
+      this.buildAllConnectionsCache();
     }
 
-    // Filter connections based on settings
-    let connectionsToRender = connections;
+    // Filter connections to only visible diagrams
+    const visibleConnections = this.allConnections.filter(connection => {
+      if (connection.type === 'subset') {
+        return this.visibleDiagrams.has(connection.fromId) && this.visibleDiagrams.has(connection.toId);
+      } else {
+        return this.visibleDiagrams.has(connection.diagram1.id) && this.visibleDiagrams.has(connection.diagram2.id);
+      }
+    });
+
+    // Apply filters
+    let connectionsToRender = visibleConnections;
 
     // Filter out transitive connections if the toggle is enabled
     if (this.hideTransitive) {
@@ -1089,6 +1114,76 @@ class MultiDotViewer {
     if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
       this.showEmptyCanvasMessage();
     }
+  }
+
+  buildAllConnectionsCache() {
+    const diagrams = Array.from(this.diagrams.values());
+    this.allConnections = [];
+
+    // Pre-compute all label sets for better performance
+    diagrams.forEach(diagram => {
+      this.getCachedLabelSet(diagram.id);
+    });
+
+    // Calculate all possible connections between diagrams
+    for (let i = 0; i < diagrams.length; i++) {
+      for (let j = i + 1; j < diagrams.length; j++) {
+        const diagram1 = diagrams[i];
+        const diagram2 = diagrams[j];
+        const cacheKey = this.getCachedConnectionKey(diagram1.id, diagram2.id);
+
+        let relationshipData;
+        if (this.connectionCache.has(cacheKey)) {
+          relationshipData = this.connectionCache.get(cacheKey);
+        } else {
+          // Calculate relationship data
+          const set1 = this.getCachedLabelSet(diagram1.id);
+          const sharedLabels = diagram2.labels.filter(label => set1.has(label));
+
+          relationshipData = {
+            sharedLabels: sharedLabels,
+            sharedCount: sharedLabels.length,
+            diagram1IsSubset: sharedLabels.length > 0 && this.isSubsetCached(diagram1.labels, diagram2.labels),
+            diagram2IsSubset: sharedLabels.length > 0 && this.isSubsetCached(diagram2.labels, diagram1.labels)
+          };
+
+          this.connectionCache.set(cacheKey, relationshipData);
+        }
+
+        // Only create connections if there are shared labels
+        if (relationshipData.sharedCount > 0) {
+          if (relationshipData.diagram1IsSubset) {
+            // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
+            this.allConnections.push({
+              type: 'subset',
+              from: diagram2,
+              to: diagram1,
+              fromId: diagram2.id,
+              toId: diagram1.id
+            });
+          } else if (relationshipData.diagram2IsSubset) {
+            // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
+            this.allConnections.push({
+              type: 'subset',
+              from: diagram1,
+              to: diagram2,
+              fromId: diagram1.id,
+              toId: diagram2.id
+            });
+          } else {
+            // Partial overlap -> regular connection line
+            this.allConnections.push({
+              type: 'shared',
+              diagram1: diagram1,
+              diagram2: diagram2,
+              sharedCount: relationshipData.sharedCount
+            });
+          }
+        }
+      }
+    }
+
+    this.connectionsCacheValid = true;
   }
 
   filterTransitiveConnections(connections) {
@@ -1140,6 +1235,19 @@ class MultiDotViewer {
       }
     }
     return setALabels.size > 0; // Must have at least one label to be a meaningful subset
+  }
+
+  // Optimized cached version using pre-computed Sets
+  isSubsetCached(setA, setB) {
+    if (setA.length === 0) return false;
+
+    const setBLabels = new Set(setB);
+    for (const label of setA) {
+      if (!setBLabels.has(label)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   drawConnection(diagram1, diagram2, sharedCount) {
