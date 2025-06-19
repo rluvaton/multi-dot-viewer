@@ -426,21 +426,38 @@ class MultiDotViewer {
     this.activeDiagram = diagramId;
     this.selectedDiagramId = diagramId;
 
-    // Clear all visible diagrams and show only the selected one
-    this.visibleDiagrams.clear();
-    this.visibleDiagrams.add(diagramId);
+    // Check if the diagram is already visible
+    const wasAlreadyVisible = this.visibleDiagrams.has(diagramId);
 
-    // Update diagram visibility and connections
-    this.updateDiagramVisibility();
-    this.updateConnections();
+    if (wasAlreadyVisible) {
+      // If already visible, just focus on it without changing visibility
+      if (shouldAutoFocus) {
+        const diagram = this.diagrams.get(diagramId);
+        if (diagram) {
+          const centerX = diagram.position.x + diagram.size.width / 2;
+          const centerY = diagram.position.y + diagram.size.height / 2;
+          // Focus without fitting to screen (keep current zoom level)
+          this.animateToPosition(centerX, centerY);
+        }
+      }
+    } else {
+      // If not visible, clear all and show only this one
+      this.visibleDiagrams.clear();
+      this.visibleDiagrams.add(diagramId);
 
-    // Auto-focus on the selected diagram
-    if (shouldAutoFocus) {
-      const diagram = this.diagrams.get(diagramId);
-      if (diagram) {
-        const centerX = diagram.position.x + diagram.size.width / 2;
-        const centerY = diagram.position.y + diagram.size.height / 2;
-        this.animateToPosition(centerX, centerY, 1);
+      // Update diagram visibility and connections
+      this.updateDiagramVisibility();
+      this.updateConnections();
+
+      // Auto-focus and fit to screen for newly visible diagram
+      if (shouldAutoFocus) {
+        const diagram = this.diagrams.get(diagramId);
+        if (diagram) {
+          const centerX = diagram.position.x + diagram.size.width / 2;
+          const centerY = diagram.position.y + diagram.size.height / 2;
+          // Fit to screen with scale = 1
+          this.animateToPosition(centerX, centerY, 1);
+        }
       }
     }
 
