@@ -17,7 +17,7 @@ class MultiDotViewer {
     this.draggedDiagram = null;
     this.dragOffset = { x: 0, y: 0 };
     this.isDraggingDiagram = false;
-    this.hideConnections = false; // Toggle for hiding all connections
+    this.connectionVisibility = 'all'; // 'all', 'subset', or 'none'
     this.hideTransitive = false; // Toggle for hiding transitive connections
     this.minSharedLabels = 0; // Minimum shared labels to show connections
     this.selectedDiagramId = null; // Currently active diagram (for highlighting)
@@ -46,7 +46,7 @@ class MultiDotViewer {
     this.zoomInBtn = document.getElementById('zoomIn');
     this.zoomOutBtn = document.getElementById('zoomOut');
     this.zoomLevel = document.getElementById('zoomLevel');
-    this.hideConnectionsBtn = document.getElementById('hideConnections');
+    this.connectionVisibilitySelect = document.getElementById('connectionVisibility');
     this.hideTransitiveBtn = document.getElementById('hideTransitive');
     this.minSharedLabelsInput = document.getElementById('minSharedLabels');
     this.selectAllBtn = document.getElementById('selectAll');
@@ -68,7 +68,7 @@ class MultiDotViewer {
     this.fitAllBtn.addEventListener('click', () => this.fitAllDiagrams());
     this.zoomInBtn.addEventListener('click', () => this.zoomIn());
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
-    this.hideConnectionsBtn.addEventListener('click', () => this.toggleConnections());
+    this.connectionVisibilitySelect.addEventListener('change', (e) => this.updateConnectionVisibility(e));
     this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
     this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
     this.selectAllBtn.addEventListener('click', () => this.selectAllDiagrams());
@@ -206,7 +206,7 @@ class MultiDotViewer {
       }
 
       this.updateDiagramVisibility();
-      if (!this.hideConnections) {
+      if (this.connectionVisibility !== 'none') {
         this.updateConnections();
       }
       this.fitAllDiagrams();
@@ -249,22 +249,22 @@ class MultiDotViewer {
     const shouldHideConnections = diagramCount > 10;
 
     // Only change if the state needs to change to avoid unnecessary updates
-    if (shouldHideConnections && !this.hideConnections) {
+    if (shouldHideConnections && this.connectionVisibility === 'all') {
       // Auto-enable hide connections
-      this.hideConnections = true;
-      this.hideConnectionsBtn.classList.add('btn-active');
-      this.hideConnectionsBtn.title = 'Show connections (auto-hidden due to diagram count)';
+      this.connectionVisibility = 'none';
+      this.connectionVisibilitySelect.value = 'none';
+      this.connectionVisibilitySelect.title = 'Auto-hidden due to diagram count';
       this.hideAllConnections();
 
       // Show a brief notification
       console.info(`Auto-hiding connections due to ${diagramCount} diagrams for better performance`);
-    } else if (!shouldHideConnections && this.hideConnections && diagramCount <= 10) {
+    } else if (!shouldHideConnections && this.connectionVisibility === 'none' && diagramCount <= 10) {
       // Auto-disable hide connections when count drops to 10 or below
       // But only if it was auto-hidden (not manually hidden by user)
-      if (this.hideConnectionsBtn.title.includes('auto-hidden')) {
-        this.hideConnections = false;
-        this.hideConnectionsBtn.classList.remove('btn-active');
-        this.hideConnectionsBtn.title = 'Hide all connections';
+      if (this.connectionVisibilitySelect.title.includes('Auto-hidden')) {
+        this.connectionVisibility = 'all';
+        this.connectionVisibilitySelect.value = 'all';
+        this.connectionVisibilitySelect.title = '';
 
         // Show connections since we're auto-enabling them
         this.updateConnections();
@@ -693,7 +693,7 @@ class MultiDotViewer {
 
     this.updateDiagramList();
     this.updateDiagramVisibility();
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
   }
@@ -800,26 +800,14 @@ class MultiDotViewer {
     );
   }
 
-  toggleConnections() {
-    this.hideConnections = !this.hideConnections;
+  updateConnectionVisibility(event) {
+    this.connectionVisibility = event.target.value;
 
-    // Update button appearance
-    if (this.hideConnections) {
-      this.hideConnectionsBtn.classList.add('btn-active');
-      // Distinguish between manual and auto-hide in the title
-      if (this.diagrams.size > 10) {
-        this.hideConnectionsBtn.title = 'Show connections (manually hidden)';
-      } else {
-        this.hideConnectionsBtn.title = 'Show connections';
-      }
-      // Hide all connections immediately
-      this.hideAllConnections();
-    } else {
-      this.hideConnectionsBtn.classList.remove('btn-active');
-      this.hideConnectionsBtn.title = 'Hide all connections';
-      // Show connections - rebuild if needed
-      this.updateConnections();
-    }
+    // Clear any auto-hide title when user manually changes setting
+    this.connectionVisibilitySelect.title = '';
+
+    // Update connections based on new visibility setting
+    this.updateConnections();
   }
 
   toggleTransitiveConnections() {
@@ -835,7 +823,7 @@ class MultiDotViewer {
     }
 
     // Only update if connections are visible
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
   }
@@ -856,7 +844,7 @@ class MultiDotViewer {
     event.target.value = this.minSharedLabels;
 
     // Only update if connections are visible
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
   }
@@ -869,7 +857,7 @@ class MultiDotViewer {
 
     // Update UI
     this.updateDiagramVisibility();
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
     this.updateDiagramList();
@@ -884,7 +872,7 @@ class MultiDotViewer {
 
     // Update UI
     this.updateDiagramVisibility();
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
     this.updateDiagramList();
@@ -900,7 +888,7 @@ class MultiDotViewer {
     }
 
     this.updateDiagramVisibility();
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
 
@@ -1177,7 +1165,7 @@ class MultiDotViewer {
     this.svg.select('.empty-canvas-overlay').remove();
 
     // Skip all connection calculations if connections are hidden
-    if (this.hideConnections) {
+    if (this.connectionVisibility === 'none') {
       this.hideAllConnections();
       // Show empty state message if no diagrams are visible and some exist
       if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
@@ -1202,6 +1190,12 @@ class MultiDotViewer {
 
     // Apply filters
     let connectionsToRender = visibleConnections;
+
+    // Filter by connection visibility setting
+    if (this.connectionVisibility === 'subset') {
+      // Only show subset connections
+      connectionsToRender = connectionsToRender.filter(connection => connection.type === 'subset');
+    }
 
     // Filter out transitive connections if the toggle is enabled
     if (this.hideTransitive) {
@@ -1795,7 +1789,7 @@ class MultiDotViewer {
       .attr('transform', `translate(${newX}, ${newY})`);
 
     // Update connections in real-time only if they're visible
-    if (!this.hideConnections) {
+    if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
   }
