@@ -8,6 +8,7 @@ class MultiDotViewer {
     this.activeDiagram = null;
     this.nextDiagramPosition = { x: 50, y: 50 };
     this.diagramSpacing = 450;
+    this.hasSampleDiagrams = false;
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -72,6 +73,7 @@ class MultiDotViewer {
   async loadSampleDiagrams() {
     const sampleData = JSON.parse(document.getElementById('sampleDots').textContent);
     await this.processDotFiles(sampleData);
+    this.hasSampleDiagrams = true;
   }
 
   async handleFileLoad(event) {
@@ -81,8 +83,11 @@ class MultiDotViewer {
     this.showLoading(true);
 
     try {
-      // Clear existing diagrams when loading new files
-      this.clearAllDiagrams();
+      // Only clear sample diagrams on first upload, not subsequent uploads
+      if (this.hasSampleDiagrams) {
+        this.clearAllDiagrams();
+        this.hasSampleDiagrams = false;
+      }
 
       const dotFiles = {};
 
