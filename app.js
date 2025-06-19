@@ -174,7 +174,7 @@ class MultiDotViewer {
 
       await this.updateDiagramVisibility();
       this.updateConnections();
-      this.fitAllDiagrams();
+      await this.fitAllDiagrams();
     }
 
     // Show appropriate message based on results
@@ -607,7 +607,7 @@ class MultiDotViewer {
     );
   }
 
-  fitAllDiagrams() {
+  async fitAllDiagrams() {
     if (this.diagrams.size === 0) return;
 
     let diagramsToFit = [];
@@ -618,6 +618,13 @@ class MultiDotViewer {
     );
 
     if (diagramsToFit.length === 0) return;
+
+    // Ensure all visible diagrams are rendered before calculating bounds
+    for (const diagram of diagramsToFit) {
+      if (!diagram.isRendered) {
+        await this.renderDiagramOnDemand(diagram);
+      }
+    }
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
@@ -695,7 +702,7 @@ class MultiDotViewer {
     this.updateDiagramList();
 
     // Automatically fit all diagrams to screen
-    this.fitAllDiagrams();
+    await this.fitAllDiagrams();
   }
 
   async unselectAllDiagrams() {
@@ -988,7 +995,7 @@ class MultiDotViewer {
     event.preventDefault();
   }
 
-  handleKeyDown(event) {
+  async handleKeyDown(event) {
     if (event.ctrlKey || event.metaKey) {
       switch (event.key) {
         case '0':
@@ -1006,7 +1013,7 @@ class MultiDotViewer {
           break;
         case 'f':
           event.preventDefault();
-          this.fitAllDiagrams();
+          await this.fitAllDiagrams();
           break;
       }
     }
