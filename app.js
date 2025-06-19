@@ -166,7 +166,7 @@ class MultiDotViewer {
       // If focus mode is enabled and no diagram is selected, select the first one
       if (this.focusMode && !this.selectedDiagramId && this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
-        this.selectDiagram(firstDiagram.id);
+        this.selectDiagram(firstDiagram.id, true); // Auto-focus when first loading
       }
 
       this.updateDiagramVisibility();
@@ -407,7 +407,7 @@ class MultiDotViewer {
     }
   }
 
-  selectDiagram(diagramId) {
+  selectDiagram(diagramId, shouldAutoFocus = false) {
     // Clear previous selection
     this.viewport.selectAll('.diagram-container')
       .select('.diagram-bg')
@@ -428,12 +428,14 @@ class MultiDotViewer {
       this.updateDiagramVisibility();
       this.updateConnections();
 
-      // Auto-focus on the selected diagram in focus mode
-      const diagram = this.diagrams.get(diagramId);
-      if (diagram) {
-        const centerX = diagram.position.x + diagram.size.width / 2;
-        const centerY = diagram.position.y + diagram.size.height / 2;
-        this.animateToPosition(centerX, centerY, 1);
+      // Auto-focus on the selected diagram in focus mode only if requested
+      if (shouldAutoFocus) {
+        const diagram = this.diagrams.get(diagramId);
+        if (diagram) {
+          const centerX = diagram.position.x + diagram.size.width / 2;
+          const centerY = diagram.position.y + diagram.size.height / 2;
+          this.animateToPosition(centerX, centerY, 1);
+        }
       }
     }
 
@@ -504,7 +506,7 @@ class MultiDotViewer {
         // Add click handlers
         item.addEventListener('click', (e) => {
           if (!e.target.closest('.actions')) {
-            this.selectDiagram(id);
+            this.selectDiagram(id, true); // Auto-focus when selecting from sidebar
           }
         });
 
@@ -550,7 +552,7 @@ class MultiDotViewer {
       // If focus mode is enabled and there are other diagrams, select the first one
       if (this.focusMode && this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
-        this.selectDiagram(firstDiagram.id);
+        this.selectDiagram(firstDiagram.id, true); // Auto-focus when switching after deletion
       }
     }
 
@@ -692,7 +694,7 @@ class MultiDotViewer {
       // If no diagram is selected, select the first one
       if (!this.selectedDiagramId && this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
-        this.selectDiagram(firstDiagram.id);
+        this.selectDiagram(firstDiagram.id, true); // Auto-focus when enabling focus mode
       }
     }
 
