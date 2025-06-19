@@ -97,6 +97,30 @@ class MultiDotViewer {
 
     this.svg.call(this.zoom);
     this.updateZoomLevel();
+
+    // Create arrowhead marker for subset arrows
+    this.createArrowheadMarker();
+  }
+
+  createArrowheadMarker() {
+    const defs = this.svg.select('defs').empty() ? this.svg.append('defs') : this.svg.select('defs');
+
+    if (defs.select('#arrowhead').empty()) {
+      const marker = defs.append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 8)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto');
+
+      marker.append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#ef4444')
+        .attr('stroke', '#ef4444')
+        .attr('stroke-width', 1);
+    }
   }
 
   async loadSampleDiagrams() {
@@ -637,7 +661,9 @@ class MultiDotViewer {
 
     // Clear connections
     this.viewport.selectAll('.connection-line').remove();
-    this.viewport.selectAll('.connection-label').remove();
+    this.viewport.selectAll('.connection-label-bg').remove();
+    this.viewport.selectAll('.connection-label-text').remove();
+    this.viewport.selectAll('.connection-arrow-group').remove();
 
     // Clear the diagrams map
     this.diagrams.clear();
@@ -1061,10 +1087,7 @@ class MultiDotViewer {
   }
 
   updateConnections() {
-    // Clear existing connections and empty state message
-    this.viewport.selectAll('.connection-line').remove();
-    this.viewport.selectAll('.connection-label').remove();
-    this.viewport.selectAll('.connection-arrow').remove();
+    // Remove empty state message
     this.svg.select('.empty-canvas-overlay').remove();
 
     // Build all connections cache if needed
@@ -1101,18 +1124,211 @@ class MultiDotViewer {
       });
     }
 
-    // Render the connections
-    connectionsToRender.forEach(connection => {
-      if (connection.type === 'subset') {
-        this.drawSubsetArrow(connection.from, connection.to);
-      } else if (connection.type === 'shared') {
-        this.drawConnection(connection.diagram1, connection.diagram2, connection.sharedCount);
-      }
-    });
+    // Update connections using data binding for efficient updates
+    this.updateConnectionElements(connectionsToRender);
 
     // Show empty state message if no diagrams are visible and some exist
     if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
       this.showEmptyCanvasMessage();
+    }
+  }
+
+  updateConnectionElements(connectionsToRender) {
+    // Separate connections by type for different handling
+    const sharedConnections = connectionsToRender.filter(c => c.type === 'shared');
+    const subsetConnections = connectionsToRender.filter(c => c.type === 'subset');
+
+    // Update shared connections (lines with labels)
+    this.updateSharedConnections(sharedConnections);
+
+    // Update subset connections (arrows)
+    this.updateSubsetConnections(subsetConnections);
+  }
+
+  updateSharedConnections(connections) {
+    // Generate unique IDs for connections
+    const connectionsWithIds = connections.map(conn => ({
+      ...conn,
+      id: this.getCachedConnectionKey(conn.diagram1.id, conn.diagram2.id)
+    }));
+
+    // Update connection lines using D3 data binding
+    const lines = this.viewport.selectAll('.connection-line')
+      .data(connectionsWithIds, d => d.id);
+
+    // Remove connections that are no longer needed
+    lines.exit().remove();
+
+    // Add new connection lines
+    const newLines = lines.enter()
+      .append('line')
+      .attr('class', 'connection-line')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '5,5')
+      .attr('opacity', 0.6);
+
+    // Update positions for all lines (existing + new)
+    lines.merge(newLines)
+      .attr('x1', d => d.diagram1.position.x + d.diagram1.size.width / 2)
+      .attr('y1', d => d.diagram1.position.y + d.diagram1.size.height / 2)
+      .attr('x2', d => d.diagram2.position.x + d.diagram2.size.width / 2)
+      .attr('y2', d => d.diagram2.position.y + d.diagram2.size.height / 2);
+
+    // Update connection label backgrounds
+    const labelBgs = this.viewport.selectAll('.connection-label-bg')
+      .data(connectionsWithIds, d => d.id);
+
+    labelBgs.exit().remove();
+
+    const newLabelBgs = labelBgs.enter()
+      .append('rect')
+      .attr('class', 'connection-label-bg')
+      .attr('width', 60)
+      .attr('height', 20)
+      .attr('rx', 10)
+      .attr('fill', '#ffffff')
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1);
+
+    labelBgs.merge(newLabelBgs)
+      .attr('x', d => {
+        const midX = (d.diagram1.position.x + d.diagram1.size.width / 2 +
+          d.diagram2.position.x + d.diagram2.size.width / 2) / 2;
+        return midX - 30;
+      })
+      .attr('y', d => {
+        const midY = (d.diagram1.position.y + d.diagram1.size.height / 2 +
+          d.diagram2.position.y + d.diagram2.size.height / 2) / 2;
+        return midY - 10;
+      });
+
+    // Update connection label texts
+    const labelTexts = this.viewport.selectAll('.connection-label-text')
+      .data(connectionsWithIds, d => d.id);
+
+    labelTexts.exit().remove();
+
+    const newLabelTexts = labelTexts.enter()
+      .append('text')
+      .attr('class', 'connection-label-text')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('font-family', 'monospace')
+      .attr('font-weight', '500')
+      .attr('fill', '#64748b');
+
+    labelTexts.merge(newLabelTexts)
+      .attr('x', d => {
+        const midX = (d.diagram1.position.x + d.diagram1.size.width / 2 +
+          d.diagram2.position.x + d.diagram2.size.width / 2) / 2;
+        return midX;
+      })
+      .attr('y', d => {
+        const midY = (d.diagram1.position.y + d.diagram1.size.height / 2 +
+          d.diagram2.position.y + d.diagram2.size.height / 2) / 2;
+        return midY + 4;
+      })
+      .text(d => `${d.sharedCount} shared`);
+  }
+
+  updateSubsetConnections(connections) {
+    // Generate unique IDs for subset connections
+    const connectionsWithIds = connections.map(conn => ({
+      ...conn,
+      id: `subset-${conn.fromId}-${conn.toId}`
+    }));
+
+    // Update subset arrows using D3 data binding
+    const arrowGroups = this.viewport.selectAll('.connection-arrow-group')
+      .data(connectionsWithIds, d => d.id);
+
+    // Remove arrows that are no longer needed
+    arrowGroups.exit().remove();
+
+    // Add new arrow groups
+    const newArrowGroups = arrowGroups.enter()
+      .append('g')
+      .attr('class', 'connection-arrow-group');
+
+    // Add arrow line to new groups
+    newArrowGroups.append('line')
+      .attr('class', 'connection-arrow-line')
+      .attr('stroke', '#ef4444')
+      .attr('stroke-width', 2)
+      .attr('marker-end', 'url(#arrowhead)');
+
+    // Add arrow label background to new groups
+    newArrowGroups.append('rect')
+      .attr('class', 'connection-arrow-label-bg')
+      .attr('width', 50)
+      .attr('height', 18)
+      .attr('rx', 9)
+      .attr('fill', '#ffffff')
+      .attr('stroke', '#ef4444')
+      .attr('stroke-width', 1);
+
+    // Add arrow label text to new groups
+    newArrowGroups.append('text')
+      .attr('class', 'connection-arrow-label-text')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '10px')
+      .attr('font-family', 'monospace')
+      .attr('font-weight', '500')
+      .attr('fill', '#dc2626')
+      .text('subset');
+
+    // Update positions for all arrow groups (existing + new)
+    const allArrowGroups = arrowGroups.merge(newArrowGroups);
+
+    allArrowGroups.each(function (d) {
+      const group = d3.select(this);
+      const positions = calculateArrowPositions(d.from, d.to);
+
+      // Update arrow line
+      group.select('.connection-arrow-line')
+        .attr('x1', positions.x1)
+        .attr('y1', positions.y1)
+        .attr('x2', positions.x2)
+        .attr('y2', positions.y2);
+
+      // Update label background
+      group.select('.connection-arrow-label-bg')
+        .attr('x', positions.labelX - 25)
+        .attr('y', positions.labelY - 9);
+
+      // Update label text
+      group.select('.connection-arrow-label-text')
+        .attr('x', positions.labelX)
+        .attr('y', positions.labelY + 3);
+    });
+
+    // Helper function to calculate arrow positions
+    function calculateArrowPositions(fromDiagram, toDiagram) {
+      const x1 = fromDiagram.position.x + fromDiagram.size.width / 2;
+      const y1 = fromDiagram.position.y + fromDiagram.size.height / 2;
+      const x2 = toDiagram.position.x + toDiagram.size.width / 2;
+      const y2 = toDiagram.position.y + toDiagram.size.height / 2;
+
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+      const fromRadius = Math.min(fromDiagram.size.width, fromDiagram.size.height) / 2;
+      const toRadius = Math.min(toDiagram.size.width, toDiagram.size.height) / 2;
+
+      const startX = x1 + Math.cos(angle) * (fromRadius + 10);
+      const startY = y1 + Math.sin(angle) * (fromRadius + 10);
+      const endX = x2 - Math.cos(angle) * (toRadius + 10);
+      const endY = y2 - Math.sin(angle) * (toRadius + 10);
+
+      return {
+        x1: startX,
+        y1: startY,
+        x2: endX,
+        y2: endY,
+        labelX: (startX + endX) / 2,
+        labelY: (startY + endY) / 2
+      };
     }
   }
 
