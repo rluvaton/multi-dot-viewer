@@ -767,31 +767,57 @@ class MultiDotViewer {
     // Scale elements based on zoom level for consistent appearance
     const scale = 1 / transform.k;
 
-    // Add background circle
-    messageGroup.append('circle')
-      .attr('r', 120 * scale)
-      .attr('fill', '#f8fafc')
+    // Add background rectangle with rounded corners
+    messageGroup.append('rect')
+      .attr('x', -140 * scale)
+      .attr('y', -60 * scale)
+      .attr('width', 280 * scale)
+      .attr('height', 120 * scale)
+      .attr('rx', 12 * scale)
+      .attr('fill', '#ffffff')
       .attr('stroke', '#e2e8f0')
-      .attr('stroke-width', 2 * scale)
-      .attr('opacity', 0.9);
+      .attr('stroke-width', 1 * scale)
+      .attr('opacity', 0.95);
 
-    // Add icon
-    messageGroup.append('g')
-      .attr('transform', `translate(0, ${-30 * scale}) scale(${scale})`)
-      .append('svg')
-      .attr('width', 48)
-      .attr('height', 48)
-      .attr('x', -24)
-      .attr('y', -24)
-      .attr('viewBox', '0 0 24 24')
+    // Add icon using path elements
+    const iconGroup = messageGroup.append('g')
+      .attr('transform', `translate(0, ${-20 * scale})`);
+
+    // Simple document icon
+    iconGroup.append('rect')
+      .attr('x', -12 * scale)
+      .attr('y', -12 * scale)
+      .attr('width', 24 * scale)
+      .attr('height', 24 * scale)
+      .attr('rx', 2 * scale)
       .attr('fill', 'none')
       .attr('stroke', '#94a3b8')
-      .attr('stroke-width', 1.5)
-      .html(`
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        <path d="M9 9h6v6H9z"></path>
-        <path d="M16 16l4 4"></path>
-      `);
+      .attr('stroke-width', 2 * scale);
+
+    // Add lines inside the document
+    iconGroup.append('line')
+      .attr('x1', -8 * scale)
+      .attr('y1', -6 * scale)
+      .attr('x2', 8 * scale)
+      .attr('y2', -6 * scale)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1 * scale);
+
+    iconGroup.append('line')
+      .attr('x1', -8 * scale)
+      .attr('y1', 0)
+      .attr('x2', 8 * scale)
+      .attr('y2', 0)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1 * scale);
+
+    iconGroup.append('line')
+      .attr('x1', -8 * scale)
+      .attr('y1', 6 * scale)
+      .attr('x2', 4 * scale)
+      .attr('y2', 6 * scale)
+      .attr('stroke', '#94a3b8')
+      .attr('stroke-width', 1 * scale);
 
     // Add main message
     messageGroup.append('text')
@@ -806,7 +832,7 @@ class MultiDotViewer {
     messageGroup.append('text')
       .attr('text-anchor', 'middle')
       .attr('y', 35 * scale)
-      .attr('font-size', `${14 * scale}px`)
+      .attr('font-size', `${13 * scale}px`)
       .attr('fill', '#64748b')
       .text('Select diagrams using checkboxes or click "Select All"');
   }
