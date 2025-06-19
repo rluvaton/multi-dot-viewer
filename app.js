@@ -146,9 +146,9 @@ class MultiDotViewer {
 
     // Show appropriate message based on results
     if (duplicateCount > 0 && successCount > 0) {
-      this.showInfo(`Added ${successCount} new diagrams. Skipped ${duplicateCount} duplicate files.`);
+      console.info(`Added ${successCount} new diagrams. Skipped ${duplicateCount} duplicate files.`);
     } else if (duplicateCount > 0 && successCount === 0) {
-      this.showInfo(`No new diagrams added. All ${duplicateCount} files were already loaded.`);
+      console.info(`No new diagrams added. All ${duplicateCount} files were already loaded.`);
     } else if (successCount < totalFiles - duplicateCount) {
       this.showError(`Successfully loaded ${successCount} out of ${totalFiles - duplicateCount} new diagrams.`);
     }
