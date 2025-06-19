@@ -19,8 +19,9 @@ class MultiDotViewer {
     this.isDraggingDiagram = false;
     this.hideTransitive = false; // Toggle for hiding transitive connections
     this.minSharedLabels = 0; // Minimum shared labels to show connections
-    this.focusMode = true; // Focus mode - show only one diagram at a time
-    this.selectedDiagramId = null; // Currently selected diagram for focus mode
+    this.focusMode = true; // Focus mode - show only selected diagrams
+    this.selectedDiagramId = null; // Currently active diagram (for highlighting)
+    this.visibleDiagrams = new Set(); // Set of diagram IDs visible in focus mode
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -166,6 +167,7 @@ class MultiDotViewer {
       // If focus mode is enabled and no diagram is selected, select the first one
       if (this.focusMode && !this.selectedDiagramId && this.diagrams.size > 0) {
         const firstDiagram = this.diagrams.values().next().value;
+        this.visibleDiagrams.add(firstDiagram.id);
         this.selectDiagram(firstDiagram.id, true); // Auto-focus when first loading
       }
 
@@ -474,12 +476,15 @@ class MultiDotViewer {
       this.diagrams.forEach((diagram, id) => {
         const item = document.createElement('div');
         item.className = `diagram-item ${id === this.activeDiagram ? 'active' : ''}`;
+        const isVisible = this.visibleDiagrams.has(id);
         item.innerHTML = `
-                    <div class="icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <polyline points="9,9 9,15 15,12"></polyline>
-                        </svg>
+                    <div class="diagram-checkbox">
+                        <input type="checkbox" id="checkbox-${id}" ${isVisible ? 'checked' : ''}>
+                        <label for="checkbox-${id}" class="checkbox-label">
+                            <svg class="checkbox-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20,6 9,17 4,12"></polyline>
+                            </svg>
+                        </label>
                     </div>
                     <div class="info">
                         <div class="name">${diagram.filename.replace(/\.dot$/i, '')}</div>
@@ -503,15 +508,22 @@ class MultiDotViewer {
                     </div>
                 `;
 
+        // Add checkbox handler
+        const checkbox = item.querySelector(`#checkbox-${id}`);
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          this.toggleDiagramVisibility(id, e.target.checked);
+        });
+
         // Add click handlers
         item.addEventListener('click', (e) => {
-          if (!e.target.closest('.actions')) {
+          if (!e.target.closest('.actions') && !e.target.closest('.diagram-checkbox')) {
             this.selectDiagram(id, true); // Auto-focus when selecting from sidebar
           }
         });
 
         item.addEventListener('dblclick', (e) => {
-          if (!e.target.closest('.actions')) {
+          if (!e.target.closest('.actions') && !e.target.closest('.diagram-checkbox')) {
             this.focusOnDiagram(id);
           }
         });
@@ -556,6 +568,9 @@ class MultiDotViewer {
       }
     }
 
+    // Remove from visible diagrams set
+    this.visibleDiagrams.delete(diagramId);
+
     this.updateDiagramList();
     this.updateDiagramVisibility();
     this.updateConnections();
@@ -575,6 +590,7 @@ class MultiDotViewer {
     // Reset active diagram
     this.activeDiagram = null;
     this.selectedDiagramId = null;
+    this.visibleDiagrams.clear();
 
     // Reset diagram position for new ones
     this.nextDiagramPosition = { x: 50, y: 50 };
@@ -610,12 +626,11 @@ class MultiDotViewer {
 
     let diagramsToFit = [];
 
-    // In focus mode, only fit the selected diagram
-    if (this.focusMode && this.selectedDiagramId) {
-      const selectedDiagram = this.diagrams.get(this.selectedDiagramId);
-      if (selectedDiagram) {
-        diagramsToFit = [selectedDiagram];
-      }
+    // In focus mode, only fit the visible diagrams
+    if (this.focusMode && this.visibleDiagrams.size > 0) {
+      diagramsToFit = Array.from(this.diagrams.values()).filter(diagram =>
+        this.visibleDiagrams.has(diagram.id)
+      );
     } else {
       // In normal mode, fit all diagrams
       diagramsToFit = Array.from(this.diagrams.values());
@@ -691,25 +706,45 @@ class MultiDotViewer {
     this.focusMode = event.target.checked;
 
     if (this.focusMode) {
-      if (this.selectedDiagramId) {
-        // If there's already a selected diagram, focus on it
-        const diagram = this.diagrams.get(this.selectedDiagramId);
-        if (diagram) {
-          const centerX = diagram.position.x + diagram.size.width / 2;
-          const centerY = diagram.position.y + diagram.size.height / 2;
-          this.animateToPosition(centerX, centerY, 1);
+      // When enabling focus mode, if no diagrams are visible, make the selected one visible
+      // or if none selected, make the first one visible
+      if (this.visibleDiagrams.size === 0) {
+        if (this.selectedDiagramId) {
+          this.visibleDiagrams.add(this.selectedDiagramId);
+        } else if (this.diagrams.size > 0) {
+          const firstDiagram = this.diagrams.values().next().value;
+          this.visibleDiagrams.add(firstDiagram.id);
+          this.selectDiagram(firstDiagram.id, true);
         }
-      } else if (this.diagrams.size > 0) {
-        // If no diagram is selected, select and focus on the first one
-        const firstDiagram = this.diagrams.values().next().value;
-        this.selectDiagram(firstDiagram.id, true); // Auto-focus when enabling focus mode
       }
+
+      // Focus on visible diagrams
+      if (this.visibleDiagrams.size > 0) {
+        this.fitAllDiagrams();
+      }
+    } else {
+      // When disabling focus mode, clear the visible set (all will be shown)
+      // but keep the selection
     }
 
     // Update diagram visibility
     this.updateDiagramVisibility();
 
     // Update connections
+    this.updateConnections();
+
+    // Update the diagram list to refresh checkboxes
+    this.updateDiagramList();
+  }
+
+  toggleDiagramVisibility(diagramId, isVisible) {
+    if (isVisible) {
+      this.visibleDiagrams.add(diagramId);
+    } else {
+      this.visibleDiagrams.delete(diagramId);
+    }
+
+    this.updateDiagramVisibility();
     this.updateConnections();
   }
 
@@ -718,8 +753,8 @@ class MultiDotViewer {
       const diagramElement = d3.select(`#diagram-${id}`);
 
       if (this.focusMode) {
-        // In focus mode, only show the selected diagram
-        const isVisible = id === this.selectedDiagramId;
+        // In focus mode, only show diagrams that are checked
+        const isVisible = this.visibleDiagrams.has(id);
         diagramElement.style('display', isVisible ? 'block' : 'none');
       } else {
         // In normal mode, show all diagrams
@@ -877,49 +912,51 @@ class MultiDotViewer {
     const connections = [];
 
     // First pass: identify all subset relationships
-    if (this.focusMode && this.selectedDiagramId) {
-      // In focus mode, only show connections from the selected diagram to others
-      const selectedDiagram = this.diagrams.get(this.selectedDiagramId);
-      if (selectedDiagram) {
-        diagrams.forEach(otherDiagram => {
-          if (otherDiagram.id === selectedDiagram.id) return; // Skip self
+    if (this.focusMode && this.visibleDiagrams.size > 0) {
+      // In focus mode, only show connections between visible diagrams
+      const visibleDiagramList = diagrams.filter(diagram => this.visibleDiagrams.has(diagram.id));
 
-          const sharedLabels = this.calculateSharedLabels(selectedDiagram.labels, otherDiagram.labels);
+      for (let i = 0; i < visibleDiagramList.length; i++) {
+        for (let j = i + 1; j < visibleDiagramList.length; j++) {
+          const diagram1 = visibleDiagramList[i];
+          const diagram2 = visibleDiagramList[j];
+
+          const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
 
           if (sharedLabels.length > 0) {
             // Check for subset relationships
-            const selectedIsSubsetOfOther = this.isSubset(selectedDiagram.labels, otherDiagram.labels);
-            const otherIsSubsetOfSelected = this.isSubset(otherDiagram.labels, selectedDiagram.labels);
+            const diagram1IsSubsetOfDiagram2 = this.isSubset(diagram1.labels, diagram2.labels);
+            const diagram2IsSubsetOfDiagram1 = this.isSubset(diagram2.labels, diagram1.labels);
 
-            if (selectedIsSubsetOfOther) {
-              // Selected diagram is subset of other -> arrow from other to selected
+            if (diagram1IsSubsetOfDiagram2) {
+              // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
               connections.push({
                 type: 'subset',
-                from: otherDiagram,
-                to: selectedDiagram,
-                fromId: otherDiagram.id,
-                toId: selectedDiagram.id
+                from: diagram2,
+                to: diagram1,
+                fromId: diagram2.id,
+                toId: diagram1.id
               });
-            } else if (otherIsSubsetOfSelected) {
-              // Other diagram is subset of selected -> arrow from selected to other
+            } else if (diagram2IsSubsetOfDiagram1) {
+              // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
               connections.push({
                 type: 'subset',
-                from: selectedDiagram,
-                to: otherDiagram,
-                fromId: selectedDiagram.id,
-                toId: otherDiagram.id
+                from: diagram1,
+                to: diagram2,
+                fromId: diagram1.id,
+                toId: diagram2.id
               });
             } else {
               // Partial overlap -> regular connection line
               connections.push({
                 type: 'shared',
-                diagram1: selectedDiagram,
-                diagram2: otherDiagram,
+                diagram1: diagram1,
+                diagram2: diagram2,
                 sharedCount: sharedLabels.length
               });
             }
           }
-        });
+        }
       }
     } else {
       // Normal mode: show all connections

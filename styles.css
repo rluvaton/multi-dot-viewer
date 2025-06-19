@@ -307,20 +307,50 @@ body {
   border-color: #3b82f6;
 }
 
-.diagram-item .icon {
-  width: 32px;
-  height: 32px;
-  background: #f1f5f9;
-  border-radius: 6px;
+.diagram-checkbox {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
 }
 
-.diagram-item.active .icon {
+.diagram-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-label {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.checkbox-label:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.diagram-checkbox input[type="checkbox"]:checked+.checkbox-label {
   background: #3b82f6;
-  color: white;
+  border-color: #3b82f6;
+}
+
+.diagram-checkbox input[type="checkbox"]:checked+.checkbox-label .checkbox-icon {
+  color: #ffffff;
+  opacity: 1;
+}
+
+.checkbox-icon {
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .diagram-item .info {
