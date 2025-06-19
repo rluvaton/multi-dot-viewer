@@ -436,8 +436,8 @@ class MultiDotViewer {
         if (diagram) {
           const centerX = diagram.position.x + diagram.size.width / 2;
           const centerY = diagram.position.y + diagram.size.height / 2;
-          // Focus without fitting to screen (keep current zoom level)
-          this.animateToPosition(centerX, centerY);
+          // Focus without fitting to screen (explicitly preserve current zoom level)
+          this.animateToPosition(centerX, centerY, this.currentScale);
         }
       }
     } else {
