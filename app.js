@@ -205,14 +205,14 @@ class MultiDotViewer {
       size: { width: containerWidth, height: containerHeight }
     };
 
-    // Calculate next position
-    this.updateNextPosition();
-
     // Add to diagrams map
     this.diagrams.set(diagramData.id, diagramData);
 
     // Render diagram on canvas
     this.renderDiagram(diagramData);
+
+    // Calculate next position based on actual diagram size
+    this.updateNextPosition(diagramData.size.width);
 
     return diagramData;
   }
@@ -354,9 +354,17 @@ class MultiDotViewer {
       });
   }
 
-  updateNextPosition() {
-    this.nextDiagramPosition.x += this.diagramSpacing;
-    if (this.nextDiagramPosition.x > window.innerWidth) {
+  updateNextPosition(lastDiagramWidth = 400) {
+    // Get canvas dimensions for proper wrapping
+    const canvasRect = this.svg.node().getBoundingClientRect();
+    const maxWidth = canvasRect.width - 100; // Leave some margin
+
+    // Use actual diagram width plus padding for spacing
+    const spacing = lastDiagramWidth + 50; // 50px gap between diagrams
+    this.nextDiagramPosition.x += spacing;
+
+    // Check if we need to wrap to next row
+    if (this.nextDiagramPosition.x + 400 > maxWidth) { // 400 is avg diagram width
       this.nextDiagramPosition.x = 50;
       this.nextDiagramPosition.y += this.diagramSpacing;
     }
