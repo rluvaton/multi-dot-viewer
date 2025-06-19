@@ -274,7 +274,6 @@ class MultiDotViewer {
     // Header with rounded top corners only using a path
     const header = container.append('g')
       .attr('class', 'diagram-header')
-      .attr('clip-path', `url(#${maskId})`);
 
     const headerWidth = diagramData.size.width - 2; // Account for 1px border on each side
     header.append('path')
@@ -283,6 +282,7 @@ class MultiDotViewer {
       .attr('d', `m1 50v-38s0-11 11-11h${headerWidth - 22}s11 0 11 11v38`);
 
     // Title
+    const displayName = diagramData.filename.replace(/\.dot$/i, '');
     header.append('text')
       .attr('x', 16)
       .attr('y', 26)
@@ -290,7 +290,7 @@ class MultiDotViewer {
       .style('font-size', '14px')
       .style('font-weight', '500')
       .style('fill', '#1e293b')
-      .text(diagramData.filename);
+      .text(displayName);
 
     // Content area
     const contentPadding = 20;
@@ -430,7 +430,7 @@ class MultiDotViewer {
                         </svg>
                     </div>
                     <div class="info">
-                        <div class="name">${diagram.filename}</div>
+                        <div class="name">${diagram.filename.replace(/\.dot$/i, '')}</div>
                         <div class="meta">${diagram.size.width}×${diagram.size.height}</div>
                     </div>
                     <div class="actions">
