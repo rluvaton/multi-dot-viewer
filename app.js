@@ -75,9 +75,9 @@ class MultiDotViewer {
     this.connectionVisibilitySelect.addEventListener('change', (e) => this.updateConnectionVisibility(e));
     this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
     this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
-    this.selectAllBtn.addEventListener('click', () => this.selectAllDiagrams());
+    this.selectAllBtn.addEventListener('click', async () => await this.selectAllDiagrams());
     this.unselectAllBtn.addEventListener('click', () => this.unselectAllDiagrams());
-    this.selectTopGraphsBtn.addEventListener('click', () => this.selectTopGraphs());
+    this.selectTopGraphsBtn.addEventListener('click', async () => await this.selectTopGraphs());
     this.deleteUnselectedBtn.addEventListener('click', () => this.deleteUnselectedDiagrams());
 
     // Canvas interactions
@@ -211,7 +211,7 @@ class MultiDotViewer {
         this.selectDiagram(firstDiagram.id, true); // Auto-focus when first loading
       }
 
-      this.updateDiagramVisibility();
+      await this.updateDiagramVisibility();
       if (this.connectionVisibility !== 'none') {
         this.updateConnections();
       }
@@ -281,53 +281,29 @@ class MultiDotViewer {
   }
 
   async addDiagram(filename, dotContent) {
-    // Generate SVG from DOT content using Graphviz
-    const svgContent = await this.renderDotToSvg(dotContent);
-
-    // Parse SVG to get actual dimensions
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
-    const svgElement = svgDoc.documentElement;
-
-    let originalWidth = 400;
-    let originalHeight = 300;
-
-    if (svgElement && svgElement.tagName === 'svg') {
-      // Try to get dimensions from various attributes
-      const width = svgElement.getAttribute('width');
-      const height = svgElement.getAttribute('height');
-      const viewBox = svgElement.getAttribute('viewBox');
-
-      if (width && height) {
-        originalWidth = parseFloat(width.replace(/[^\d.]/g, '')) || 400;
-        originalHeight = parseFloat(height.replace(/[^\d.]/g, '')) || 300;
-      } else if (viewBox) {
-        const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
-        originalWidth = vbWidth || 400;
-        originalHeight = vbHeight || 300;
-      }
-    }
-
-    // Calculate container size with padding
-    const padding = 40;
-    const headerHeight = 50;
-    const containerWidth = Math.max(350, originalWidth + padding);
-    const containerHeight = Math.max(250, originalHeight + headerHeight + padding);
-
-    // Extract labels from DOT content
+    // Extract labels from DOT content (lightweight operation)
     const labels = this.extractLabelsFromDot(dotContent);
 
-    // Create diagram data
+    // Use default dimensions for initial layout (no expensive SVG rendering)
+    const defaultWidth = 400;
+    const defaultHeight = 300;
+    const padding = 40;
+    const headerHeight = 50;
+    const containerWidth = Math.max(350, defaultWidth + padding);
+    const containerHeight = Math.max(250, defaultHeight + headerHeight + padding);
+
+    // Create diagram data without SVG content initially
     const diagramData = {
       id: this.generateId(),
       filename,
       dotContent,
-      svgContent,
-      originalWidth,
-      originalHeight,
+      svgContent: null, // Will be rendered on-demand
+      originalWidth: defaultWidth,
+      originalHeight: defaultHeight,
       position: { ...this.nextDiagramPosition },
       size: { width: containerWidth, height: containerHeight },
-      labels: labels
+      labels: labels,
+      isRendered: false // Track if SVG has been generated
     };
 
     // Add to diagrams map
@@ -339,10 +315,9 @@ class MultiDotViewer {
     // Auto-enable hide connections when we have more than 10 diagrams
     this.checkAutoHideConnections();
 
-    // Render diagram on canvas
-    this.renderDiagram(diagramData);
+    // Skip expensive rendering during import - diagrams will render on-demand
 
-    // Calculate next position based on actual diagram size
+    // Calculate next position based on default diagram size
     this.updateNextPosition(diagramData.size.width, diagramData.size.height);
 
     return diagramData;
@@ -383,7 +358,44 @@ class MultiDotViewer {
     });
   }
 
-  renderDiagram(diagramData) {
+  async renderDiagram(diagramData) {
+    // Generate SVG on-demand if not already rendered
+    if (!diagramData.isRendered && !diagramData.svgContent) {
+      try {
+        diagramData.svgContent = await this.renderDotToSvg(diagramData.dotContent);
+
+        // Update dimensions based on actual SVG
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(diagramData.svgContent, 'image/svg+xml');
+        const svgElement = svgDoc.documentElement;
+
+        if (svgElement && svgElement.tagName === 'svg') {
+          const width = svgElement.getAttribute('width');
+          const height = svgElement.getAttribute('height');
+          const viewBox = svgElement.getAttribute('viewBox');
+
+          if (width && height) {
+            diagramData.originalWidth = parseFloat(width.replace(/[^\d.]/g, '')) || 400;
+            diagramData.originalHeight = parseFloat(height.replace(/[^\d.]/g, '')) || 300;
+          } else if (viewBox) {
+            const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
+            diagramData.originalWidth = vbWidth || 400;
+            diagramData.originalHeight = vbHeight || 300;
+          }
+
+          // Recalculate container size with actual dimensions
+          const padding = 40;
+          const headerHeight = 50;
+          diagramData.size.width = Math.max(350, diagramData.originalWidth + padding);
+          diagramData.size.height = Math.max(250, diagramData.originalHeight + headerHeight + padding);
+        }
+
+        diagramData.isRendered = true;
+      } catch (error) {
+        console.error(`Failed to render diagram ${diagramData.filename}:`, error);
+        return;
+      }
+    }
     const container = this.viewport.append('g')
       .attr('class', 'diagram-container')
       .attr('id', `diagram-${diagramData.id}`)
@@ -629,9 +641,9 @@ class MultiDotViewer {
 
         // Add checkbox handler
         const checkbox = item.querySelector(`#checkbox-${id}`);
-        checkbox.addEventListener('change', (e) => {
+        checkbox.addEventListener('change', async (e) => {
           e.stopPropagation();
-          this.toggleDiagramVisibility(id, e.target.checked);
+          await this.toggleDiagramVisibility(id, e.target.checked);
         });
 
         // Add click handlers
@@ -920,14 +932,14 @@ class MultiDotViewer {
     }
   }
 
-  selectAllDiagrams() {
+  async selectAllDiagrams() {
     // Add all diagrams to visible set
     this.diagrams.forEach((diagram, id) => {
       this.visibleDiagrams.add(id);
     });
 
     // Update UI
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
@@ -949,7 +961,7 @@ class MultiDotViewer {
     this.updateDiagramList();
   }
 
-  selectTopGraphs() {
+  async selectTopGraphs() {
     // Clear current selection
     this.visibleDiagrams.clear();
 
@@ -986,7 +998,7 @@ class MultiDotViewer {
     });
 
     // Update UI
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
@@ -1040,7 +1052,7 @@ class MultiDotViewer {
     console.info(`Deleted ${unselectedDiagrams.length} unselected diagram${unselectedDiagrams.length > 1 ? 's' : ''}`);
   }
 
-  toggleDiagramVisibility(diagramId, isVisible) {
+  async toggleDiagramVisibility(diagramId, isVisible) {
     const wasEmpty = this.visibleDiagrams.size === 0;
 
     if (isVisible) {
@@ -1049,7 +1061,7 @@ class MultiDotViewer {
       this.visibleDiagrams.delete(diagramId);
     }
 
-    this.updateDiagramVisibility();
+    await this.updateDiagramVisibility();
     if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
@@ -1060,17 +1072,27 @@ class MultiDotViewer {
     }
   }
 
-  updateDiagramVisibility() {
+  async updateDiagramVisibility() {
     // Remove any existing empty state message
     this.svg.select('.empty-canvas-overlay').remove();
 
-    this.diagrams.forEach((diagram, id) => {
+    // Render visible diagrams that haven't been rendered yet
+    for (const [id, diagram] of this.diagrams) {
+      const isVisible = this.visibleDiagrams.has(id);
       const diagramElement = d3.select(`#diagram-${id}`);
 
-      // Only show diagrams that are explicitly checked (in visible set)
-      const isVisible = this.visibleDiagrams.has(id);
-      diagramElement.style('display', isVisible ? 'block' : 'none');
-    });
+      if (isVisible && !diagram.isRendered) {
+        // Render the diagram if it's visible but not yet rendered
+        if (diagramElement.empty()) {
+          await this.renderDiagram(diagram);
+        }
+      }
+
+      // Show/hide diagrams based on visibility
+      if (!diagramElement.empty()) {
+        diagramElement.style('display', isVisible ? 'block' : 'none');
+      }
+    }
 
     // Show empty state message if no diagrams are visible and some exist
     if (this.visibleDiagrams.size === 0 && this.diagrams.size > 0) {
