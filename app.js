@@ -19,6 +19,8 @@ class MultiDotViewer {
     this.isDraggingDiagram = false;
     this.hideTransitive = false; // Toggle for hiding transitive connections
     this.minSharedLabels = 0; // Minimum shared labels to show connections
+    this.focusMode = true; // Focus mode - show only one diagram at a time
+    this.selectedDiagramId = null; // Currently selected diagram for focus mode
 
     this.initializeElements();
     this.initializeEventListeners();
@@ -39,6 +41,7 @@ class MultiDotViewer {
     this.zoomLevel = document.getElementById('zoomLevel');
     this.hideTransitiveBtn = document.getElementById('hideTransitive');
     this.minSharedLabelsInput = document.getElementById('minSharedLabels');
+    this.focusModeToggle = document.getElementById('focusMode');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -58,6 +61,7 @@ class MultiDotViewer {
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
     this.hideTransitiveBtn.addEventListener('click', () => this.toggleTransitiveConnections());
     this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
+    this.focusModeToggle.addEventListener('change', (e) => this.toggleFocusMode(e));
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -158,6 +162,14 @@ class MultiDotViewer {
 
     if (successCount > 0) {
       this.updateDiagramList();
+
+      // If focus mode is enabled and no diagram is selected, select the first one
+      if (this.focusMode && !this.selectedDiagramId && this.diagrams.size > 0) {
+        const firstDiagram = this.diagrams.values().next().value;
+        this.selectDiagram(firstDiagram.id);
+      }
+
+      this.updateDiagramVisibility();
       this.updateConnections();
       this.fitAllDiagrams();
     }
@@ -409,6 +421,14 @@ class MultiDotViewer {
       .attr('stroke-width', 2);
 
     this.activeDiagram = diagramId;
+    this.selectedDiagramId = diagramId;
+
+    // Update diagram visibility if in focus mode
+    if (this.focusMode) {
+      this.updateDiagramVisibility();
+      this.updateConnections();
+    }
+
     this.updateDiagramList();
   }
 
@@ -516,7 +536,18 @@ class MultiDotViewer {
       this.activeDiagram = null;
     }
 
+    if (this.selectedDiagramId === diagramId) {
+      this.selectedDiagramId = null;
+
+      // If focus mode is enabled and there are other diagrams, select the first one
+      if (this.focusMode && this.diagrams.size > 0) {
+        const firstDiagram = this.diagrams.values().next().value;
+        this.selectDiagram(firstDiagram.id);
+      }
+    }
+
     this.updateDiagramList();
+    this.updateDiagramVisibility();
     this.updateConnections();
   }
 
@@ -533,6 +564,7 @@ class MultiDotViewer {
 
     // Reset active diagram
     this.activeDiagram = null;
+    this.selectedDiagramId = null;
 
     // Reset diagram position for new ones
     this.nextDiagramPosition = { x: 50, y: 50 };
@@ -628,6 +660,39 @@ class MultiDotViewer {
 
     // Redraw connections
     this.updateConnections();
+  }
+
+  toggleFocusMode(event) {
+    this.focusMode = event.target.checked;
+
+    if (this.focusMode) {
+      // If no diagram is selected, select the first one
+      if (!this.selectedDiagramId && this.diagrams.size > 0) {
+        const firstDiagram = this.diagrams.values().next().value;
+        this.selectDiagram(firstDiagram.id);
+      }
+    }
+
+    // Update diagram visibility
+    this.updateDiagramVisibility();
+
+    // Update connections
+    this.updateConnections();
+  }
+
+  updateDiagramVisibility() {
+    this.diagrams.forEach((diagram, id) => {
+      const diagramElement = d3.select(`#diagram-${id}`);
+
+      if (this.focusMode) {
+        // In focus mode, only show the selected diagram
+        const isVisible = id === this.selectedDiagramId;
+        diagramElement.style('display', isVisible ? 'block' : 'none');
+      } else {
+        // In normal mode, show all diagrams
+        diagramElement.style('display', 'block');
+      }
+    });
   }
 
   animateToPosition(x, y, scale = this.currentScale) {
@@ -765,47 +830,105 @@ class MultiDotViewer {
     this.viewport.selectAll('.connection-arrow').remove();
 
     const diagrams = Array.from(this.diagrams.values());
+
+    // In focus mode, only show connections involving the selected diagram
+    let diagramsToProcess = diagrams;
+    if (this.focusMode && this.selectedDiagramId) {
+      const selectedDiagram = this.diagrams.get(this.selectedDiagramId);
+      if (selectedDiagram) {
+        // Only process connections that involve the selected diagram
+        diagramsToProcess = [selectedDiagram];
+      }
+    }
+
     const connections = [];
 
     // First pass: identify all subset relationships
-    for (let i = 0; i < diagrams.length; i++) {
-      for (let j = i + 1; j < diagrams.length; j++) {
-        const diagram1 = diagrams[i];
-        const diagram2 = diagrams[j];
+    if (this.focusMode && this.selectedDiagramId) {
+      // In focus mode, only show connections from the selected diagram to others
+      const selectedDiagram = this.diagrams.get(this.selectedDiagramId);
+      if (selectedDiagram) {
+        diagrams.forEach(otherDiagram => {
+          if (otherDiagram.id === selectedDiagram.id) return; // Skip self
 
-        const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
+          const sharedLabels = this.calculateSharedLabels(selectedDiagram.labels, otherDiagram.labels);
 
-        if (sharedLabels.length > 0) {
-          // Check for subset relationships
-          const diagram1IsSubsetOfDiagram2 = this.isSubset(diagram1.labels, diagram2.labels);
-          const diagram2IsSubsetOfDiagram1 = this.isSubset(diagram2.labels, diagram1.labels);
+          if (sharedLabels.length > 0) {
+            // Check for subset relationships
+            const selectedIsSubsetOfOther = this.isSubset(selectedDiagram.labels, otherDiagram.labels);
+            const otherIsSubsetOfSelected = this.isSubset(otherDiagram.labels, selectedDiagram.labels);
 
-          if (diagram1IsSubsetOfDiagram2) {
-            // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
-            connections.push({
-              type: 'subset',
-              from: diagram2,
-              to: diagram1,
-              fromId: diagram2.id,
-              toId: diagram1.id
-            });
-          } else if (diagram2IsSubsetOfDiagram1) {
-            // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
-            connections.push({
-              type: 'subset',
-              from: diagram1,
-              to: diagram2,
-              fromId: diagram1.id,
-              toId: diagram2.id
-            });
-          } else {
-            // Partial overlap -> regular connection line
-            connections.push({
-              type: 'shared',
-              diagram1: diagram1,
-              diagram2: diagram2,
-              sharedCount: sharedLabels.length
-            });
+            if (selectedIsSubsetOfOther) {
+              // Selected diagram is subset of other -> arrow from other to selected
+              connections.push({
+                type: 'subset',
+                from: otherDiagram,
+                to: selectedDiagram,
+                fromId: otherDiagram.id,
+                toId: selectedDiagram.id
+              });
+            } else if (otherIsSubsetOfSelected) {
+              // Other diagram is subset of selected -> arrow from selected to other
+              connections.push({
+                type: 'subset',
+                from: selectedDiagram,
+                to: otherDiagram,
+                fromId: selectedDiagram.id,
+                toId: otherDiagram.id
+              });
+            } else {
+              // Partial overlap -> regular connection line
+              connections.push({
+                type: 'shared',
+                diagram1: selectedDiagram,
+                diagram2: otherDiagram,
+                sharedCount: sharedLabels.length
+              });
+            }
+          }
+        });
+      }
+    } else {
+      // Normal mode: show all connections
+      for (let i = 0; i < diagrams.length; i++) {
+        for (let j = i + 1; j < diagrams.length; j++) {
+          const diagram1 = diagrams[i];
+          const diagram2 = diagrams[j];
+
+          const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
+
+          if (sharedLabels.length > 0) {
+            // Check for subset relationships
+            const diagram1IsSubsetOfDiagram2 = this.isSubset(diagram1.labels, diagram2.labels);
+            const diagram2IsSubsetOfDiagram1 = this.isSubset(diagram2.labels, diagram1.labels);
+
+            if (diagram1IsSubsetOfDiagram2) {
+              // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
+              connections.push({
+                type: 'subset',
+                from: diagram2,
+                to: diagram1,
+                fromId: diagram2.id,
+                toId: diagram1.id
+              });
+            } else if (diagram2IsSubsetOfDiagram1) {
+              // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
+              connections.push({
+                type: 'subset',
+                from: diagram1,
+                to: diagram2,
+                fromId: diagram1.id,
+                toId: diagram2.id
+              });
+            } else {
+              // Partial overlap -> regular connection line
+              connections.push({
+                type: 'shared',
+                diagram1: diagram1,
+                diagram2: diagram2,
+                sharedCount: sharedLabels.length
+              });
+            }
           }
         }
       }
