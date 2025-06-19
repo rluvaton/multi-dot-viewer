@@ -271,15 +271,24 @@ class MultiDotViewer {
       .attr('stroke-width', 1)
       .style('filter', 'drop-shadow(0px 8px 32px rgba(0, 0, 0, 0.1))');
 
-    // Header - make it smaller so container's border radius naturally clips it
+    // Create a simple clipping mask that matches the container's rounded rectangle
+    const maskId = `header-mask-${diagramData.id}`;
+    container.append('defs').append('clipPath')
+      .attr('id', maskId)
+      .append('rect')
+      .attr('width', diagramData.size.width)
+      .attr('height', 50)
+      .attr('rx', 12)
+      .attr('ry', 12);
+
+    // Header
     const header = container.append('g')
-      .attr('class', 'diagram-header');
+      .attr('class', 'diagram-header')
+      .attr('clip-path', `url(#${maskId})`);
 
     header.append('rect')
-      .attr('x', 1)
-      .attr('y', 1)
-      .attr('width', diagramData.size.width - 2)
-      .attr('height', 49)
+      .attr('width', diagramData.size.width)
+      .attr('height', 50)
       .attr('fill', '#f8fafc');
 
     // Title
