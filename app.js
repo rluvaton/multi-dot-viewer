@@ -33,6 +33,7 @@ class MultiDotViewer {
     this.initializeEventListeners();
     this.initializeCanvas();
     this.initializeSidebarResize();
+    this.initializeTheme();
     this.loadSampleDiagrams();
   }
 
@@ -87,6 +88,9 @@ class MultiDotViewer {
     this.svg.on('mousemove', (event) => this.handleMouseMove(event));
     this.svg.on('mouseup', () => this.handleMouseUp());
     this.svg.on('wheel', (event) => this.handleWheel(event));
+
+    // Theme toggle
+    document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => this.handleKeyDown(e));
@@ -2098,6 +2102,36 @@ class MultiDotViewer {
     // Remove global mouse event listeners
     document.removeEventListener('mousemove', this.handleDiagramDrag.bind(this));
     document.removeEventListener('mouseup', this.endDiagramDrag.bind(this));
+  }
+
+  // Theme management
+  initializeTheme() {
+    // Check for saved theme preference or default to light mode
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    this.setTheme(savedTheme);
+  }
+
+  toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    this.setTheme(newTheme);
+  }
+
+  setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+
+    // Update the grid pattern color for the new theme
+    this.updateGridPattern();
+  }
+
+  updateGridPattern() {
+    const gridPattern = this.svg.select('#grid path');
+    if (!gridPattern.empty()) {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const gridColor = isDark ? '#334155' : '#e5e5e5';
+      gridPattern.attr('stroke', gridColor);
+    }
   }
 }
 
