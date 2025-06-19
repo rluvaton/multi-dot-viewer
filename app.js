@@ -51,6 +51,7 @@ class MultiDotViewer {
     this.minSharedLabelsInput = document.getElementById('minSharedLabels');
     this.selectAllBtn = document.getElementById('selectAll');
     this.unselectAllBtn = document.getElementById('unselectAll');
+    this.selectTopGraphsBtn = document.getElementById('selectTopGraphs');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -73,6 +74,7 @@ class MultiDotViewer {
     this.minSharedLabelsInput.addEventListener('input', (e) => this.updateMinSharedLabels(e));
     this.selectAllBtn.addEventListener('click', () => this.selectAllDiagrams());
     this.unselectAllBtn.addEventListener('click', () => this.unselectAllDiagrams());
+    this.selectTopGraphsBtn.addEventListener('click', () => this.selectTopGraphs());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -876,6 +878,58 @@ class MultiDotViewer {
       this.updateConnections();
     }
     this.updateDiagramList();
+  }
+
+  selectTopGraphs() {
+    // Clear current selection
+    this.visibleDiagrams.clear();
+
+    // Find diagrams that are NOT subsets of any other diagram
+    const diagramArray = Array.from(this.diagrams.values());
+    const topGraphs = new Set();
+
+    // For each diagram, check if it's a subset of any other diagram
+    diagramArray.forEach(diagram => {
+      let isSubsetOfAnother = false;
+
+      // Check against all other diagrams
+      diagramArray.forEach(otherDiagram => {
+        if (diagram.id !== otherDiagram.id) {
+          const diagramLabels = this.getCachedLabelSet(diagram.id);
+          const otherLabels = this.getCachedLabelSet(otherDiagram.id);
+
+          // Check if this diagram is a subset of the other
+          if (this.isSubsetCached(diagramLabels, otherLabels)) {
+            isSubsetOfAnother = true;
+          }
+        }
+      });
+
+      // If this diagram is not a subset of any other, it's a "top graph"
+      if (!isSubsetOfAnother) {
+        topGraphs.add(diagram.id);
+      }
+    });
+
+    // Add all top graphs to visible diagrams
+    topGraphs.forEach(diagramId => {
+      this.visibleDiagrams.add(diagramId);
+    });
+
+    // Update UI
+    this.updateDiagramVisibility();
+    if (this.connectionVisibility !== 'none') {
+      this.updateConnections();
+    }
+    this.updateDiagramList();
+
+    // If we found top graphs, fit them to screen
+    if (topGraphs.size > 0) {
+      this.fitAllDiagrams();
+    }
+
+    // Show info about what was selected
+    console.info(`Selected ${topGraphs.size} top graphs (not subsets of any other graph)`);
   }
 
   toggleDiagramVisibility(diagramId, isVisible) {
