@@ -9,10 +9,13 @@ class MultiDotViewer {
     this.nextDiagramPosition = { x: 50, y: 50 };
     this.diagramSpacing = 450;
     this.hasSampleDiagrams = false;
+    this.sidebarWidth = 280;
+    this.isResizing = false;
 
     this.initializeElements();
     this.initializeEventListeners();
     this.initializeCanvas();
+    this.initializeSidebarResize();
     this.loadSampleDiagrams();
   }
 
@@ -29,6 +32,8 @@ class MultiDotViewer {
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
+    this.sidebarResizer = document.getElementById('sidebarResizer');
+    this.appContainer = document.querySelector('.app-container');
   }
 
   initializeEventListeners() {
@@ -646,6 +651,47 @@ class MultiDotViewer {
     // Simple info display - could be enhanced with a proper notification system
     console.info(message);
     alert(message);
+  }
+
+  initializeSidebarResize() {
+    let startX, startWidth;
+
+    const handleMouseDown = (e) => {
+      this.isResizing = true;
+      startX = e.clientX;
+      startWidth = this.sidebarWidth;
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      e.preventDefault();
+    };
+
+    const handleMouseMove = (e) => {
+      if (!this.isResizing) return;
+
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(200, Math.min(600, startWidth + deltaX));
+
+      this.setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      this.isResizing = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    this.sidebarResizer.addEventListener('mousedown', handleMouseDown);
+  }
+
+  setSidebarWidth(width) {
+    this.sidebarWidth = width;
+    this.appContainer.style.gridTemplateColumns = `${width}px 1fr`;
   }
 }
 

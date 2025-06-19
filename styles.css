@@ -23,6 +23,47 @@ body {
   height: 100vh;
 }
 
+/* Resizable sidebar */
+.sidebar-resizer {
+  grid-area: sidebar;
+  display: flex;
+  position: relative;
+}
+
+.sidebar-content {
+  flex: 1;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  overflow-y: auto;
+  z-index: 90;
+}
+
+.resize-handle {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  z-index: 100;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background: #3b82f6;
+}
+
+.resize-handle:active {
+  background: #1d4ed8;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -2px;
+  bottom: 0;
+}
+
 /* Header */
 .header {
   grid-area: header;
@@ -98,11 +139,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-  grid-area: sidebar;
-  background: #ffffff;
-  border-right: 1px solid #e2e8f0;
-  overflow-y: auto;
-  z-index: 90;
+  /* Removed - now handled by .sidebar-content */
 }
 
 .sidebar-header {
@@ -392,7 +429,7 @@ body {
     grid-template-rows: 60px 1fr;
   }
 
-  .sidebar {
+  .sidebar-resizer {
     position: fixed;
     left: -280px;
     top: 60px;
@@ -402,7 +439,7 @@ body {
     z-index: 1000;
   }
 
-  .sidebar.open {
+  .sidebar-resizer.open {
     left: 0;
   }
 
@@ -432,20 +469,20 @@ body {
 }
 
 /* Scrollbar styling */
-.sidebar::-webkit-scrollbar {
+.sidebar-content::-webkit-scrollbar {
   width: 6px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.sidebar-content::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar-content::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
 
-.sidebar::-webkit-scrollbar-thumb:hover {
+.sidebar-content::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
