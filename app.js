@@ -628,15 +628,10 @@ class MultiDotViewer {
 
     let diagramsToFit = [];
 
-    // If diagrams are selected, only fit the visible diagrams
-    if (this.visibleDiagrams.size > 0) {
-      diagramsToFit = Array.from(this.diagrams.values()).filter(diagram =>
-        this.visibleDiagrams.has(diagram.id)
-      );
-    } else {
-      // If no diagrams selected, fit all diagrams
-      diagramsToFit = Array.from(this.diagrams.values());
-    }
+    // Only fit visible diagrams
+    diagramsToFit = Array.from(this.diagrams.values()).filter(diagram =>
+      this.visibleDiagrams.has(diagram.id)
+    );
 
     if (diagramsToFit.length === 0) return;
 
@@ -744,9 +739,8 @@ class MultiDotViewer {
     this.diagrams.forEach((diagram, id) => {
       const diagramElement = d3.select(`#diagram-${id}`);
 
-      // Only show diagrams that are checked (in visible set)
-      // If no diagrams are in visible set, show all diagrams
-      const isVisible = this.visibleDiagrams.size === 0 || this.visibleDiagrams.has(id);
+      // Only show diagrams that are explicitly checked (in visible set)
+      const isVisible = this.visibleDiagrams.has(id);
       diagramElement.style('display', isVisible ? 'block' : 'none');
     });
 
@@ -950,12 +944,8 @@ class MultiDotViewer {
     const connections = [];
 
     // First pass: identify all subset relationships
-    // If diagrams are selected (visible set not empty), only show connections between visible diagrams
-    // Otherwise show all connections
-    let diagramsToProcess = diagrams;
-    if (this.visibleDiagrams.size > 0) {
-      diagramsToProcess = diagrams.filter(diagram => this.visibleDiagrams.has(diagram.id));
-    }
+    // Only show connections between visible diagrams
+    let diagramsToProcess = diagrams.filter(diagram => this.visibleDiagrams.has(diagram.id));
 
     for (let i = 0; i < diagramsToProcess.length; i++) {
       for (let j = i + 1; j < diagramsToProcess.length; j++) {
