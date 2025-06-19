@@ -689,28 +689,16 @@ class MultiDotViewer {
         if (!items) return;
 
         items.forEach(item => {
-          if (item.type === 'node') {
-            // Check if node has a label attribute
-            if (item.attributes && item.attributes.label) {
-              // Remove quotes from label if present
-              const label = item.attributes.label.replace(/^"(.*)"$/, '$1');
-              labels.add(label);
-            } else {
-              // Use node ID if no label specified
-              labels.add(item.node_id);
-            }
-          } else if (item.type === 'subgraph' && item.children) {
-            // Recursively process subgraph children
-            extractNodes(item.children);
-          } else if (item.type === 'edge') {
-            // Extract nodes from edges (left and right)
-            if (item.left && item.left.id) {
-              labels.add(item.left.id);
-            }
-            if (item.right && item.right.id) {
-              labels.add(item.right.id);
-            }
+          if(!item?.attr_list) {
+            return;
           }
+
+          const labelAttr = item.attr_list.find(attr => attr.id === 'label');
+          if(!labelAttr) {
+            return;
+          }
+
+          labels.add(labelAttr.eq);
         });
       };
 
