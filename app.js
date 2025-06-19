@@ -606,9 +606,24 @@ class MultiDotViewer {
   fitAllDiagrams() {
     if (this.diagrams.size === 0) return;
 
+    let diagramsToFit = [];
+
+    // In focus mode, only fit the selected diagram
+    if (this.focusMode && this.selectedDiagramId) {
+      const selectedDiagram = this.diagrams.get(this.selectedDiagramId);
+      if (selectedDiagram) {
+        diagramsToFit = [selectedDiagram];
+      }
+    } else {
+      // In normal mode, fit all diagrams
+      diagramsToFit = Array.from(this.diagrams.values());
+    }
+
+    if (diagramsToFit.length === 0) return;
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-    this.diagrams.forEach(diagram => {
+    diagramsToFit.forEach(diagram => {
       minX = Math.min(minX, diagram.position.x);
       minY = Math.min(minY, diagram.position.y);
       maxX = Math.max(maxX, diagram.position.x + diagram.size.width);
