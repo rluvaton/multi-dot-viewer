@@ -689,12 +689,12 @@ class MultiDotViewer {
         if (!items) return;
 
         items.forEach(item => {
-          if(!item?.attr_list) {
+          if (!item?.attr_list) {
             return;
           }
 
           const labelAttr = item.attr_list.find(attr => attr.id === 'label');
-          if(!labelAttr) {
+          if (!labelAttr) {
             return;
           }
 
@@ -729,6 +729,7 @@ class MultiDotViewer {
     // Clear existing connections
     this.viewport.selectAll('.connection-line').remove();
     this.viewport.selectAll('.connection-label').remove();
+    this.viewport.selectAll('.connection-arrow').remove();
 
     const diagrams = Array.from(this.diagrams.values());
 
@@ -741,10 +742,36 @@ class MultiDotViewer {
         const sharedLabels = this.calculateSharedLabels(diagram1.labels, diagram2.labels);
 
         if (sharedLabels.length > 0) {
-          this.drawConnection(diagram1, diagram2, sharedLabels.length);
+          // Check for subset relationships
+          const diagram1IsSubsetOfDiagram2 = this.isSubset(diagram1.labels, diagram2.labels);
+          const diagram2IsSubsetOfDiagram1 = this.isSubset(diagram2.labels, diagram1.labels);
+
+          if (diagram1IsSubsetOfDiagram2) {
+            // All labels from diagram1 exist in diagram2 -> arrow from diagram2 to diagram1
+            this.drawSubsetArrow(diagram2, diagram1);
+          } else if (diagram2IsSubsetOfDiagram1) {
+            // All labels from diagram2 exist in diagram1 -> arrow from diagram1 to diagram2
+            this.drawSubsetArrow(diagram1, diagram2);
+          } else {
+            // Partial overlap -> regular connection line
+            this.drawConnection(diagram1, diagram2, sharedLabels.length);
+          }
         }
       }
     }
+  }
+
+  isSubset(setA, setB) {
+    // Check if all labels in setA exist in setB
+    const setALabels = new Set(setA);
+    const setBLabels = new Set(setB);
+
+    for (const label of setALabels) {
+      if (!setBLabels.has(label)) {
+        return false;
+      }
+    }
+    return setALabels.size > 0; // Must have at least one label to be a meaningful subset
   }
 
   drawConnection(diagram1, diagram2, sharedCount) {
@@ -794,6 +821,85 @@ class MultiDotViewer {
       .attr('font-weight', '500')
       .attr('fill', '#64748b')
       .text(labelText);
+  }
+
+  drawSubsetArrow(fromDiagram, toDiagram) {
+    // Calculate center points of both diagrams
+    const x1 = fromDiagram.position.x + fromDiagram.size.width / 2;
+    const y1 = fromDiagram.position.y + fromDiagram.size.height / 2;
+    const x2 = toDiagram.position.x + toDiagram.size.width / 2;
+    const y2 = toDiagram.position.y + toDiagram.size.height / 2;
+
+    // Calculate angle for arrow positioning
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+
+    // Calculate points on the edges of the diagram containers instead of centers
+    const fromRadius = Math.max(fromDiagram.size.width, fromDiagram.size.height) / 2;
+    const toRadius = Math.max(toDiagram.size.width, toDiagram.size.height) / 2;
+
+    const startX = x1 + Math.cos(angle) * fromRadius * 0.7;
+    const startY = y1 + Math.sin(angle) * fromRadius * 0.7;
+    const endX = x2 - Math.cos(angle) * toRadius * 0.7;
+    const endY = y2 - Math.sin(angle) * toRadius * 0.7;
+
+    // Create arrow marker definition (if not already created)
+    let defs = this.viewport.select('defs');
+    if (defs.empty()) {
+      defs = this.viewport.append('defs');
+    }
+
+    if (defs.select('#arrowhead').empty()) {
+      defs.append('marker')
+        .attr('id', 'arrowhead')
+        .attr('markerWidth', 10)
+        .attr('markerHeight', 7)
+        .attr('refX', 9)
+        .attr('refY', 3.5)
+        .attr('orient', 'auto')
+        .append('polygon')
+        .attr('points', '0 0, 10 3.5, 0 7')
+        .attr('fill', '#dc2626');
+    }
+
+    // Draw red arrow line
+    this.viewport.append('line')
+      .attr('class', 'connection-arrow')
+      .attr('x1', startX)
+      .attr('y1', startY)
+      .attr('x2', endX)
+      .attr('y2', endY)
+      .attr('stroke', '#dc2626')
+      .attr('stroke-width', 3)
+      .attr('marker-end', 'url(#arrowhead)')
+      .attr('opacity', 0.8);
+
+    // Calculate midpoint for label
+    const midX = (startX + endX) / 2;
+    const midY = (startY + endY) / 2;
+
+    // Draw label background
+    const labelBg = this.viewport.append('rect')
+      .attr('class', 'connection-arrow')
+      .attr('x', midX - 25)
+      .attr('y', midY - 10)
+      .attr('width', 50)
+      .attr('height', 20)
+      .attr('rx', 10)
+      .attr('fill', '#ffffff')
+      .attr('stroke', '#dc2626')
+      .attr('stroke-width', 2);
+
+    // Draw label text
+    this.viewport.append('text')
+      .attr('class', 'connection-arrow')
+      .attr('x', midX)
+      .attr('y', midY + 4)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('font-family', 'monospace')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#dc2626')
+      .text('subset');
   }
 
   showLoading(show) {
