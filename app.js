@@ -271,22 +271,26 @@ class MultiDotViewer {
       .attr('stroke-width', 1)
       .style('filter', 'drop-shadow(0px 8px 32px rgba(0, 0, 0, 0.1))');
 
+    // Create a clipping mask for the header with rounded top corners only
+    const maskId = `header-mask-${diagramData.id}`;
+    container.append('defs').append('clipPath')
+      .attr('id', maskId)
+      .append('path')
+      .attr('d', `M 0,12 
+                        Q 0,0 12,0 
+                        L ${diagramData.size.width - 12},0 
+                        Q ${diagramData.size.width},0 ${diagramData.size.width},12 
+                        L ${diagramData.size.width},50 
+                        L 0,50 Z`);
+
     // Header
     const header = container.append('g')
-      .attr('class', 'diagram-header');
+      .attr('class', 'diagram-header')
+      .attr('clip-path', `url(#${maskId})`);
 
     header.append('rect')
       .attr('width', diagramData.size.width)
-      .attr('height', 40)
-      .attr('rx', 12)
-      .attr('fill', '#f8fafc')
-      .attr('stroke', '#e2e8f0')
-      .attr('stroke-width', 1);
-
-    header.append('rect')
-      .attr('y', 32)
-      .attr('width', diagramData.size.width)
-      .attr('height', 8)
+      .attr('height', 50)
       .attr('fill', '#f8fafc');
 
     // Title
@@ -382,26 +386,14 @@ class MultiDotViewer {
 
   selectDiagram(diagramId) {
     // Clear previous selection
-    this.viewport.selectAll('.diagram-container').each(function () {
-      const container = d3.select(this);
-      // Reset main background
-      container.select('.diagram-bg')
-        .attr('stroke', '#e2e8f0')
-        .attr('stroke-width', 1);
-      // Reset header
-      container.select('.diagram-header rect:first-child')
-        .attr('stroke', '#e2e8f0')
-        .attr('stroke-width', 1);
-    });
+    this.viewport.selectAll('.diagram-container')
+      .select('.diagram-bg')
+      .attr('stroke', '#e2e8f0')
+      .attr('stroke-width', 1);
 
-    // Highlight selected diagram
-    const selectedContainer = this.viewport.select(`#diagram-${diagramId}`);
-    // Highlight main background
-    selectedContainer.select('.diagram-bg')
-      .attr('stroke', '#3b82f6')
-      .attr('stroke-width', 2);
-    // Highlight header to match
-    selectedContainer.select('.diagram-header rect:first-child')
+    // Highlight selected diagram - only the main background border
+    this.viewport.select(`#diagram-${diagramId}`)
+      .select('.diagram-bg')
       .attr('stroke', '#3b82f6')
       .attr('stroke-width', 2);
 
