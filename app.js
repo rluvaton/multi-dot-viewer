@@ -365,18 +365,18 @@ class MultiDotViewer {
     this.currentRowMaxHeight = Math.max(this.currentRowMaxHeight, lastDiagramHeight);
 
     // Use actual diagram width plus padding for spacing
-    const spacing = lastDiagramWidth + 50; // 50px gap between diagrams
+    const spacing = lastDiagramWidth + 30; // 30px gap between diagrams
     this.nextDiagramPosition.x += spacing;
 
     // Check if we need to wrap to next row
     if (this.nextDiagramPosition.x + 400 > maxWidth) { // 400 is avg diagram width
       // Move to next row using the actual height of the tallest diagram in current row
-      this.currentRowStartY += this.currentRowMaxHeight + 50; // 50px vertical gap
+      this.currentRowStartY += this.currentRowMaxHeight + 30; // 30px vertical gap
       this.nextDiagramPosition.x = 50;
       this.nextDiagramPosition.y = this.currentRowStartY;
 
       // Reset row height tracking for new row
-      this.currentRowMaxHeight = 0;
+      this.currentRowMaxHeight = lastDiagramHeight; // Start tracking with current diagram
     }
   }
 
