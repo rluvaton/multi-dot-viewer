@@ -271,29 +271,15 @@ class MultiDotViewer {
       .attr('stroke-width', 1)
       .style('filter', 'drop-shadow(0px 8px 32px rgba(0, 0, 0, 0.1))');
 
-    // Create a clipping mask for the header with rounded top corners only
-    // Use the same radius as container but position inside the border
-    const borderWidth = 1;
-    const radius = 12; // Same radius as container
-    const maskId = `header-mask-${diagramData.id}`;
-    container.append('defs').append('clipPath')
-      .attr('id', maskId)
-      .append('path')
-      .attr('d', `M ${borderWidth},${radius} 
-                        Q ${borderWidth},${borderWidth} ${radius},${borderWidth} 
-                        L ${diagramData.size.width - radius},${borderWidth} 
-                        Q ${diagramData.size.width - borderWidth},${borderWidth} ${diagramData.size.width - borderWidth},${radius} 
-                        L ${diagramData.size.width - borderWidth},50 
-                        L ${borderWidth},50 Z`);
-
-    // Header
+    // Header - make it smaller so container's border radius naturally clips it
     const header = container.append('g')
-      .attr('class', 'diagram-header')
-      .attr('clip-path', `url(#${maskId})`);
+      .attr('class', 'diagram-header');
 
     header.append('rect')
-      .attr('width', diagramData.size.width)
-      .attr('height', 50)
+      .attr('x', 1)
+      .attr('y', 1)
+      .attr('width', diagramData.size.width - 2)
+      .attr('height', 49)
       .attr('fill', '#f8fafc');
 
     // Title
