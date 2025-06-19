@@ -43,6 +43,7 @@ class MultiDotViewer {
     this.loadFilesBtn = document.getElementById('loadFiles');
     this.resetViewBtn = document.getElementById('resetView');
     this.fitAllBtn = document.getElementById('fitAll');
+    this.relayoutBtn = document.getElementById('relayout');
     this.zoomInBtn = document.getElementById('zoomIn');
     this.zoomOutBtn = document.getElementById('zoomOut');
     this.zoomLevel = document.getElementById('zoomLevel');
@@ -68,6 +69,7 @@ class MultiDotViewer {
     // View controls
     this.resetViewBtn.addEventListener('click', () => this.resetView());
     this.fitAllBtn.addEventListener('click', () => this.fitAllDiagrams());
+    this.relayoutBtn.addEventListener('click', () => this.relayoutDiagrams());
     this.zoomInBtn.addEventListener('click', () => this.zoomIn());
     this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
     this.connectionVisibilitySelect.addEventListener('change', (e) => this.updateConnectionVisibility(e));
@@ -821,6 +823,52 @@ class MultiDotViewer {
       this.zoom.transform,
       transform
     );
+  }
+
+  relayoutDiagrams() {
+    if (this.diagrams.size === 0) return;
+
+    // Reset layout position tracking
+    this.nextDiagramPosition = { x: 50, y: 50 };
+    this.currentRowMaxHeight = 0;
+    this.currentRowStartY = 50;
+
+    // Get all diagrams in a consistent order (by filename for predictability)
+    const diagramsArray = Array.from(this.diagrams.values())
+      .sort((a, b) => a.filename.localeCompare(b.filename));
+
+    // Reposition each diagram
+    diagramsArray.forEach((diagram, index) => {
+      // Calculate new position using the same logic as initial layout
+      const newPosition = { ...this.nextDiagramPosition };
+
+      // Update the diagram's position data
+      diagram.position = newPosition;
+
+      // Update the visual position
+      d3.select(`#diagram-${diagram.id}`)
+        .transition()
+        .duration(500)
+        .attr('transform', `translate(${newPosition.x}, ${newPosition.y})`);
+
+      // Calculate next position for the following diagram
+      this.updateNextPosition(diagram.size.width, diagram.size.height);
+    });
+
+    // Update connections after layout
+    if (this.connectionVisibility !== 'none') {
+      // Add a small delay to let the transitions complete
+      setTimeout(() => {
+        this.updateConnections();
+      }, 100);
+    }
+
+    // Fit all diagrams to view after relayout
+    setTimeout(() => {
+      this.fitAllDiagrams();
+    }, 600); // Wait for transitions to complete
+
+    console.info(`Relayouted ${this.diagrams.size} diagrams`);
   }
 
   updateConnectionVisibility(event) {
