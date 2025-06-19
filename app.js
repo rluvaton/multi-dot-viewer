@@ -635,32 +635,41 @@ class MultiDotViewer {
       maxY = Math.max(maxY, diagram.position.y + diagram.size.height);
     });
 
+    // Add padding around the bounds
+    const padding = 50;
     const bounds = {
-      x: minX - 50,
-      y: minY - 50,
-      width: maxX - minX + 100,
-      height: maxY - minY + 100
+      x: minX - padding,
+      y: minY - padding,
+      width: maxX - minX + (padding * 2),
+      height: maxY - minY + (padding * 2)
     };
 
+    // Get the SVG viewport dimensions
     const svgRect = this.svg.node().getBoundingClientRect();
-    const scale = Math.min(
-      svgRect.width / bounds.width,
-      svgRect.height / bounds.height,
-      1
-    ) * 0.9;
 
-    const centerX = bounds.x + bounds.width / 2;
-    const centerY = bounds.y + bounds.height / 2;
+    // Calculate the scale needed to fit the bounds within the viewport
+    const scaleX = svgRect.width / bounds.width;
+    const scaleY = svgRect.height / bounds.height;
+    const scale = Math.min(scaleX, scaleY, 1) * 0.9; // 90% to leave some margin
 
+    // Calculate the center point of the bounds
+    const boundsCenterX = bounds.x + bounds.width / 2;
+    const boundsCenterY = bounds.y + bounds.height / 2;
+
+    // Calculate the viewport center
+    const viewportCenterX = svgRect.width / 2;
+    const viewportCenterY = svgRect.height / 2;
+
+    // Create the transform that centers and scales the bounds
     const transform = d3.zoomIdentity
-      .translate(svgRect.width / 2, svgRect.height / 2)
+      .translate(viewportCenterX, viewportCenterY)
       .scale(scale)
-      .translate(-centerX, -centerY);
+      .translate(-boundsCenterX, -boundsCenterY);
 
-    this.svg.transition().duration(750).call(
-      this.zoom.transform,
-      transform
-    );
+    // Apply the transform with animation
+    this.svg.transition()
+      .duration(750)
+      .call(this.zoom.transform, transform);
   }
 
   toggleTransitiveConnections() {
