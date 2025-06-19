@@ -734,7 +734,7 @@ class MultiDotViewer {
 
   updateDiagramVisibility() {
     // Remove any existing empty state message
-    this.viewport.select('.empty-canvas-message').remove();
+    this.svg.select('.empty-canvas-overlay').remove();
 
     this.diagrams.forEach((diagram, id) => {
       const diagramElement = d3.select(`#diagram-${id}`);
@@ -751,88 +751,86 @@ class MultiDotViewer {
   }
 
   showEmptyCanvasMessage() {
-    // Get canvas center and current transform
+    // Remove any existing message first
+    d3.select('#mainSvg').select('.empty-canvas-overlay').remove();
+
+    // Create a fixed overlay that sits above the viewport
     const canvasRect = this.svg.node().getBoundingClientRect();
-    const transform = d3.zoomTransform(this.svg.node());
+    const centerX = canvasRect.width / 2;
+    const centerY = canvasRect.height / 2;
 
-    // Calculate center in viewport coordinates (accounting for zoom/pan)
-    const centerX = (canvasRect.width / 2 - transform.x) / transform.k;
-    const centerY = (canvasRect.height / 2 - transform.y) / transform.k;
-
-    // Create message group
-    const messageGroup = this.viewport.append('g')
-      .attr('class', 'empty-canvas-message')
+    // Add overlay group directly to SVG (not viewport) so it's not affected by zoom/pan
+    const overlayGroup = this.svg.append('g')
+      .attr('class', 'empty-canvas-overlay')
       .attr('transform', `translate(${centerX}, ${centerY})`);
 
-    // Scale elements based on zoom level for consistent appearance
-    const scale = 1 / transform.k;
-
-    // Add background rectangle with rounded corners
-    messageGroup.append('rect')
-      .attr('x', -140 * scale)
-      .attr('y', -60 * scale)
-      .attr('width', 280 * scale)
-      .attr('height', 120 * scale)
-      .attr('rx', 12 * scale)
+    // Add background rectangle
+    overlayGroup.append('rect')
+      .attr('x', -140)
+      .attr('y', -60)
+      .attr('width', 280)
+      .attr('height', 120)
+      .attr('rx', 12)
       .attr('fill', '#ffffff')
       .attr('stroke', '#e2e8f0')
-      .attr('stroke-width', 1 * scale)
-      .attr('opacity', 0.95);
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.95)
+      .style('filter', 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))');
 
-    // Add icon using path elements
-    const iconGroup = messageGroup.append('g')
-      .attr('transform', `translate(0, ${-20 * scale})`);
+    // Add icon
+    const iconGroup = overlayGroup.append('g')
+      .attr('transform', 'translate(0, -20)');
 
-    // Simple document icon
+    // Document icon
     iconGroup.append('rect')
-      .attr('x', -12 * scale)
-      .attr('y', -12 * scale)
-      .attr('width', 24 * scale)
-      .attr('height', 24 * scale)
-      .attr('rx', 2 * scale)
+      .attr('x', -12)
+      .attr('y', -12)
+      .attr('width', 24)
+      .attr('height', 24)
+      .attr('rx', 2)
       .attr('fill', 'none')
       .attr('stroke', '#94a3b8')
-      .attr('stroke-width', 2 * scale);
+      .attr('stroke-width', 2);
 
-    // Add lines inside the document
+    // Lines inside document
     iconGroup.append('line')
-      .attr('x1', -8 * scale)
-      .attr('y1', -6 * scale)
-      .attr('x2', 8 * scale)
-      .attr('y2', -6 * scale)
+      .attr('x1', -8)
+      .attr('y1', -6)
+      .attr('x2', 8)
+      .attr('y2', -6)
       .attr('stroke', '#94a3b8')
-      .attr('stroke-width', 1 * scale);
+      .attr('stroke-width', 1);
 
     iconGroup.append('line')
-      .attr('x1', -8 * scale)
+      .attr('x1', -8)
       .attr('y1', 0)
-      .attr('x2', 8 * scale)
+      .attr('x2', 8)
       .attr('y2', 0)
       .attr('stroke', '#94a3b8')
-      .attr('stroke-width', 1 * scale);
+      .attr('stroke-width', 1);
 
     iconGroup.append('line')
-      .attr('x1', -8 * scale)
-      .attr('y1', 6 * scale)
-      .attr('x2', 4 * scale)
-      .attr('y2', 6 * scale)
+      .attr('x1', -8)
+      .attr('y1', 6)
+      .attr('x2', 4)
+      .attr('y2', 6)
       .attr('stroke', '#94a3b8')
-      .attr('stroke-width', 1 * scale);
+      .attr('stroke-width', 1);
 
-    // Add main message
-    messageGroup.append('text')
+    // Main message
+    overlayGroup.append('text')
       .attr('text-anchor', 'middle')
-      .attr('y', 15 * scale)
-      .attr('font-size', `${16 * scale}px`)
+      .attr('y', 15)
+      .attr('font-size', '16px')
       .attr('font-weight', '600')
       .attr('fill', '#334155')
       .text('No diagrams selected');
 
-    // Add instruction
-    messageGroup.append('text')
+    // Instruction
+    overlayGroup.append('text')
       .attr('text-anchor', 'middle')
-      .attr('y', 35 * scale)
-      .attr('font-size', `${13 * scale}px`)
+      .attr('y', 35)
+      .attr('font-size', '13px')
       .attr('fill', '#64748b')
       .text('Select diagrams using checkboxes or click "Select All"');
   }
@@ -970,7 +968,7 @@ class MultiDotViewer {
     this.viewport.selectAll('.connection-line').remove();
     this.viewport.selectAll('.connection-label').remove();
     this.viewport.selectAll('.connection-arrow').remove();
-    this.viewport.selectAll('.empty-canvas-message').remove();
+    this.svg.select('.empty-canvas-overlay').remove();
 
     const diagrams = Array.from(this.diagrams.values());
     const connections = [];
