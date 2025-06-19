@@ -709,6 +709,9 @@ class MultiDotViewer {
     this.updateDiagramVisibility();
     this.updateConnections();
     this.updateDiagramList();
+
+    // Automatically fit all diagrams to screen
+    this.fitAllDiagrams();
   }
 
   unselectAllDiagrams() {
