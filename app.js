@@ -17,7 +17,7 @@ class MultiDotViewer {
     this.draggedDiagram = null;
     this.dragOffset = { x: 0, y: 0 };
     this.isDraggingDiagram = false;
-    this.connectionVisibility = 'all'; // 'all', 'subset', or 'none'
+    this.connectionVisibility = 'none'; // 'all', 'subset', or 'none'
     this.hideTransitive = false; // Toggle for hiding transitive connections
     this.minSharedLabels = 0; // Minimum shared labels to show connections
     this.selectedDiagramId = null; // Currently active diagram (for highlighting)
