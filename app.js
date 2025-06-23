@@ -706,37 +706,68 @@ class MultiDotViewer {
     }
 
     // Count non-top graphs (subset diagrams)
-    let nonTopGraphsCount = 0;
-    if (this.diagrams.size > 0) {
-      const diagramArray = Array.from(this.diagrams.values());
-
-      diagramArray.forEach(diagram => {
-        let isSubsetOfAnother = false;
-
-        diagramArray.forEach(otherDiagram => {
-          if (diagram.id !== otherDiagram.id) {
-            const diagramLabels = this.getCachedLabelSet(diagram.id);
-            const otherLabels = this.getCachedLabelSet(otherDiagram.id);
-
-            if (this.isSubsetCached(diagramLabels, otherLabels)) {
-              isSubsetOfAnother = true;
-            }
-          }
-        });
-
-        if (isSubsetOfAnother) {
-          nonTopGraphsCount++;
-        }
-      });
-    }
+    const nonTopDiagramIdsIterator = this.getNonTopDiagrams(Array.from(this.diagrams.values()));
+    let haveNonTopGraphs = !nonTopDiagramIdsIterator.next().done;
 
     // Enable/disable "Delete Non-Top Graphs" button
-    if (nonTopGraphsCount > 0) {
+    if (haveNonTopGraphs) {
       this.deleteNonTopGraphsBtn.disabled = false;
-      this.deleteNonTopGraphsBtn.title = `Delete ${nonTopGraphsCount} subset diagram${nonTopGraphsCount > 1 ? 's' : ''}`;
+      this.deleteNonTopGraphsBtn.title = `Delete subset diagrams`;
     } else {
       this.deleteNonTopGraphsBtn.disabled = true;
-      this.deleteNonTopGraphsBtn.title = 'No subset diagrams to delete';
+      this.deleteNonTopGraphsBtn.title = "No subset diagrams to delete";
+    }
+  }
+
+  *getNonTopDiagrams(diagramArray) {
+    const nonTopDiagramIds = new Set();
+
+    for (let i = 0; i < diagramArray.length; i++) {
+      const diagram = diagramArray[i];
+      const diagramLabels = this.getCachedLabelSet(diagram.id);
+
+      // Check against the rest of the diagrams
+      for (let j = i + 1; j < diagramArray.length; j++) {
+        const otherDiagram = diagramArray[j];
+        const otherLabels = this.getCachedLabelSet(otherDiagram.id);
+
+        // I don't think it's possible as j is i + 1
+        if (diagram.id === otherDiagram.id) {
+          continue; // Skip self-comparison
+        }
+
+        const isOtherDiagramSubsetOfDiagram = this.isSubsetCached(
+          otherLabels,
+          diagramLabels
+        );
+
+        if (isOtherDiagramSubsetOfDiagram) {
+          // Do not break here as we want to get more diagrams that are subset of this
+
+          if(!nonTopDiagramIds.has(otherDiagram.id)) {
+            nonTopDiagramIds.add(otherDiagram.id);
+            yield otherDiagram.id;
+          }
+        } else {
+          // Only if other diagram is not a subset of this one
+          // Check if this diagram is a subset of the other diagram
+          // to avoid removing both diagrams if they have the same labels
+          const isDiagramSubsetOfOtherDiagram = this.isSubsetCached(
+            diagramLabels,
+            otherLabels
+          );
+
+          if (
+            !nonTopDiagramIds.has(diagram.id) &&
+            isDiagramSubsetOfOtherDiagram
+          ) {
+            nonTopDiagramIds.add(diagram.id);
+
+            yield diagram.id;
+            break; // No need to check further for this diagram
+          }
+        }
+      }
     }
   }
 
@@ -1098,40 +1129,11 @@ class MultiDotViewer {
       return;
     }
 
-    // Find diagrams that ARE subsets of other diagrams (non-top graphs)
-    const diagramArray = Array.from(this.diagrams.values());
-    const nonTopGraphs = [];
+    let countOfNonTopGraphs = 0;
 
-    // For each diagram, check if it's a subset of any other diagram
-    diagramArray.forEach(diagram => {
-      let isSubsetOfAnother = false;
+    for (const diagramId of this.getNonTopDiagrams(Array.from(this.diagrams.values()))) {
+      countOfNonTopGraphs += 1;
 
-      // Check against all other diagrams
-      diagramArray.forEach(otherDiagram => {
-        if (diagram.id !== otherDiagram.id) {
-          const diagramLabels = this.getCachedLabelSet(diagram.id);
-          const otherLabels = this.getCachedLabelSet(otherDiagram.id);
-
-          // Check if this diagram is a subset of the other
-          if (this.isSubsetCached(diagramLabels, otherLabels)) {
-            isSubsetOfAnother = true;
-          }
-        }
-      });
-
-      // If this diagram is a subset of another, it's a "non-top graph"
-      if (isSubsetOfAnother) {
-        nonTopGraphs.push(diagram.id);
-      }
-    });
-
-    if (nonTopGraphs.length === 0) {
-      console.info('No non-top graphs found - all diagrams are already top-level');
-      return;
-    }
-
-    // Delete each non-top graph
-    nonTopGraphs.forEach(diagramId => {
       // Remove from DOM
       d3.select(`#diagram-${diagramId}`).remove();
 
@@ -1140,7 +1142,15 @@ class MultiDotViewer {
 
       // Remove from visible diagrams set
       this.visibleDiagrams.delete(diagramId);
-    });
+    }
+
+
+    if (countOfNonTopGraphs === 0) {
+      console.info(
+        "No non-top graphs found - all diagrams are already top-level"
+      );
+      return;
+    }
 
     // Invalidate connection cache since diagrams were removed
     this.invalidateConnectionCache();
@@ -1156,7 +1166,7 @@ class MultiDotViewer {
     }
 
     // Show confirmation message
-    console.info(`Deleted ${nonTopGraphs.length} non-top graph${nonTopGraphs.length > 1 ? 's' : ''} (subset diagrams)`);
+    console.info(`Deleted ${countOfNonTopGraphs} non-top graph${countOfNonTopGraphs > 1 ? 's' : ''} (subset diagrams)`);
   }
 
   async toggleDiagramVisibility(diagramId, isVisible) {
