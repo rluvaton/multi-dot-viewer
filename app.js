@@ -922,21 +922,31 @@ class MultiDotViewer {
   relayoutDiagrams() {
     if (this.diagrams.size === 0) return;
 
-    // Reset layout position tracking
-    this.nextDiagramPosition = { x: 50, y: 50 };
-    this.currentRowMaxHeight = 0;
-    this.currentRowStartY = 50;
+    // Get canvas dimensions for proper wrapping
+    const canvasRect = this.svg.node().getBoundingClientRect();
+    const maxWidth = canvasRect.width - 100; // Leave some margin
 
     // Get all diagrams in a consistent order (by filename for predictability)
     const diagramsArray = Array.from(this.diagrams.values())
       .sort((a, b) => a.filename.localeCompare(b.filename));
 
-    // Reposition each diagram
-    diagramsArray.forEach((diagram, index) => {
-      // Calculate new position using the same logic as initial layout
-      const newPosition = { ...this.nextDiagramPosition };
+    // Improved layout algorithm: pack diagrams more efficiently
+    let currentX = 50;
+    let currentY = 50;
+    let rowMaxHeight = 0;
+    const padding = 30; // Space between diagrams
 
-      // Update the diagram's position data
+    diagramsArray.forEach((diagram, index) => {
+      // Check if we need to wrap to next row
+      if (currentX + diagram.size.width > maxWidth && index > 0) {
+        // Move to next row
+        currentX = 50;
+        currentY += rowMaxHeight + padding;
+        rowMaxHeight = 0;
+      }
+
+      // Position the diagram
+      const newPosition = { x: currentX, y: currentY };
       diagram.position = newPosition;
 
       // Update the visual position
@@ -945,8 +955,9 @@ class MultiDotViewer {
         .duration(500)
         .attr('transform', `translate(${newPosition.x}, ${newPosition.y})`);
 
-      // Calculate next position for the following diagram
-      this.updateNextPosition(diagram.size.width, diagram.size.height);
+      // Update tracking variables for next diagram
+      currentX += diagram.size.width + padding;
+      rowMaxHeight = Math.max(rowMaxHeight, diagram.size.height);
     });
 
     // Update connections after layout
