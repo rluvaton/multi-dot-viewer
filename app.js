@@ -56,6 +56,7 @@ class MultiDotViewer {
     this.selectTopGraphsBtn = document.getElementById('selectTopGraphs');
     this.deleteUnselectedBtn = document.getElementById('deleteUnselected');
     this.deleteNonTopGraphsBtn = document.getElementById('deleteNonTopGraphs');
+    this.ignoreIdInLabelsCheckbox = document.getElementById('ignoreIdInLabels');
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
@@ -82,6 +83,7 @@ class MultiDotViewer {
     this.selectTopGraphsBtn.addEventListener('click', async () => await this.selectTopGraphs());
     this.deleteUnselectedBtn.addEventListener('click', () => this.deleteUnselectedDiagrams());
     this.deleteNonTopGraphsBtn.addEventListener('click', () => this.deleteNonTopGraphs());
+    this.ignoreIdInLabelsCheckbox.addEventListener('change', (e) => this.toggleIgnoreIdInLabels(e));
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -288,7 +290,9 @@ class MultiDotViewer {
 
   async addDiagram(filename, dotContent) {
     // Extract labels from DOT content (lightweight operation)
-    const labels = this.extractLabelsFromDot(dotContent);
+    const labels = this.extractLabelsFromDot(dotContent, {
+      useConfig: true,
+    });
 
     // Use default dimensions for initial layout (no expensive SVG rendering)
     const defaultWidth = 400;
@@ -309,7 +313,11 @@ class MultiDotViewer {
       position: { ...this.nextDiagramPosition },
       size: { width: containerWidth, height: containerHeight },
       labels: labels,
-      isRendered: false // Track if SVG has been generated
+      rawLabels: this.extractLabelsFromDot(dotContent, {
+        // Do not process labels
+        useConfig: false,
+      }),
+      isRendered: false, // Track if SVG has been generated
     };
 
     // Add to diagrams map
@@ -744,7 +752,7 @@ class MultiDotViewer {
         if (isOtherDiagramSubsetOfDiagram) {
           // Do not break here as we want to get more diagrams that are subset of this
 
-          if(!nonTopDiagramIds.has(otherDiagram.id)) {
+          if (!nonTopDiagramIds.has(otherDiagram.id)) {
             nonTopDiagramIds.add(otherDiagram.id);
             yield otherDiagram.id;
           }
@@ -991,13 +999,9 @@ class MultiDotViewer {
   }
 
   updateMinSharedLabels(event) {
-    const value = parseInt(event.target.value) || 0;
-    this.minSharedLabels = Math.max(0, value); // Ensure non-negative
+    this.minSharedLabels = parseInt(event.target.value) || 0;
 
-    // Update the input value to reflect the processed value
-    event.target.value = this.minSharedLabels;
-
-    // Only update if connections are visible
+    // Only update connections if they're visible
     if (this.connectionVisibility !== 'none') {
       this.updateConnections();
     }
@@ -1383,7 +1387,9 @@ class MultiDotViewer {
     return 'diagram_' + Math.random().toString(36).substr(2, 9);
   }
 
-  extractLabelsFromDot(dotContent) {
+  extractLabelsFromDot(dotContent, options = {
+    useConfig: true
+  }) {
     const labels = new Set();
 
     try {
@@ -1405,12 +1411,20 @@ class MultiDotViewer {
             return;
           }
 
-          const labelAttr = item.attr_list.find(attr => attr.id === 'label');
+          const labelAttr = item.attr_list.find((attr) => attr.id === "label");
           if (!labelAttr) {
             return;
           }
 
-          labels.add(labelAttr.eq);
+          // If should not use the config and should just add the label as is
+          const processLabel =
+            options.useConfig && this.isIgnoreIdInLabelEnabled();
+
+          if (!processLabel) {
+            labels.add(labelAttr.eq);
+          } else {
+            labels.add(this.parseLabelString(labelAttr.eq));
+          }
         });
       };
 
@@ -1429,6 +1443,24 @@ class MultiDotViewer {
     }
 
     return Array.from(labels);
+  }
+
+  isIgnoreIdInLabelEnabled() {
+    return this.ignoreIdInLabelsCheckbox ? this.ignoreIdInLabelsCheckbox.checked : false;
+  }
+
+  /**
+   * 
+   * @param {string} label 
+   * @returns 
+   */
+  parseLabelString(label) {
+    if (!label) return '';
+
+    // Remove the trailing "ID: <number>" part if it exists
+    return label.replace(
+      /(\s|\\n)ID: \d+$/, ''
+    )
   }
 
   calculateSharedLabels(labels1, labels2) {
@@ -2142,6 +2174,31 @@ class MultiDotViewer {
       const gridColor = isDark ? '#334155' : '#e5e5e5';
       gridPattern.attr('stroke', gridColor);
     }
+  }
+
+  toggleIgnoreIdInLabels(event) {
+    // Update all diagram labels based on the new setting
+    this.diagrams.forEach((diagram) => {
+      if (event.target.checked) {
+        // Use processed labels (remove IDs)
+        diagram.labels = this.extractLabelsFromDot(diagram.dotContent, { useConfig: true });
+      } else {
+        // Use raw labels (original)
+        diagram.labels = [...diagram.rawLabels];
+      }
+    });
+
+    // Clear all label-related caches since labels have changed
+    this.invalidateConnectionCache();
+    this.labelSetCache.clear();
+
+    // Update connections if they're visible
+    if (this.connectionVisibility !== 'none') {
+      this.updateConnections();
+    }
+
+    // Update diagram list to reflect any changes
+    this.updateDiagramList();
   }
 }
 
