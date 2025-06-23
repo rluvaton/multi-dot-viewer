@@ -50,41 +50,13 @@
             </svg>
             Fit All
           </button>
-          <button id="relayout" class="btn btn-secondary">
+          <button id="settingsToggle" class="btn btn-secondary" title="Toggle settings">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="6" height="6" rx="1"></rect>
-              <rect x="15" y="3" width="6" height="6" rx="1"></rect>
-              <rect x="3" y="15" width="6" height="6" rx="1"></rect>
-              <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
             </svg>
-            Relayout
+            Settings
           </button>
-          <div class="filter-control">
-            <label for="connectionVisibility" class="filter-label">Connections:</label>
-            <select id="connectionVisibility" class="filter-select">
-              <option value="all">All</option>
-              <option value="subset">Subset Only</option>
-              <option value="none">None</option>
-            </select>
-          </div>
-          <button id="hideTransitive" class="btn btn-secondary" title="Hide transitive connections">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-              <path d="M9 15L15 9"></path>
-            </svg>
-            Hide Transitive
-          </button>
-          <div class="filter-control">
-            <label for="minSharedLabels" class="filter-label">Min shared:</label>
-            <input type="number" id="minSharedLabels" class="filter-input" min="0" value="0"
-              title="Hide connections with shared labels ≤ this number">
-          </div>
-          <div class="filter-control">
-            <label for="ignoreIdInLabels" class="filter-label">
-              <input type="checkbox" id="ignoreIdInLabels" class="filter-checkbox">
-              Ignore ID in labels
-            </label>
-          </div>
           <button id="themeToggle" class="theme-toggle" title="Toggle dark mode">
             <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2">
@@ -113,6 +85,64 @@
         </div>
       </div>
     </header>
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="settings-panel">
+      <div class="settings-content">
+        <div class="settings-section">
+          <h4>View & Layout</h4>
+          <div class="settings-group">
+            <button id="relayout" class="settings-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+                <rect x="3" y="15" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+              </svg>
+              Relayout Diagrams
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>Connections</h4>
+          <div class="settings-group">
+            <div class="filter-control">
+              <label for="connectionVisibility" class="filter-label">Show:</label>
+              <select id="connectionVisibility" class="filter-select">
+                <option value="all">All Connections</option>
+                <option value="subset">Subset Only</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <button id="hideTransitive" class="settings-btn" title="Hide transitive connections">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                <path d="M9 15L15 9"></path>
+              </svg>
+              Hide Transitive
+            </button>
+            <div class="filter-control">
+              <label for="minSharedLabels" class="filter-label">Min shared labels:</label>
+              <input type="number" id="minSharedLabels" class="filter-input" min="0" value="0"
+                title="Hide connections with shared labels ≤ this number">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4>Label Processing</h4>
+          <div class="settings-group">
+            <div class="filter-control">
+              <label for="ignoreIdInLabels" class="filter-label">
+                <input type="checkbox" id="ignoreIdInLabels" class="filter-checkbox">
+                Ignore ID in labels
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Sidebar with diagram list -->
     <div class="sidebar-resizer">

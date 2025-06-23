@@ -60,6 +60,8 @@ class MultiDotViewer {
     this.diagramList = document.getElementById('diagramList');
     this.diagramCount = document.getElementById('diagramCount');
     this.loadingIndicator = document.getElementById('loadingIndicator');
+    this.settingsToggle = document.getElementById('settingsToggle');
+    this.settingsPanel = document.getElementById('settingsPanel');
     this.sidebarResizer = document.getElementById('sidebarResizer');
     this.appContainer = document.querySelector('.app-container');
   }
@@ -84,6 +86,7 @@ class MultiDotViewer {
     this.deleteUnselectedBtn.addEventListener('click', () => this.deleteUnselectedDiagrams());
     this.deleteNonTopGraphsBtn.addEventListener('click', () => this.deleteNonTopGraphs());
     this.ignoreIdInLabelsCheckbox.addEventListener('change', (e) => this.toggleIgnoreIdInLabels(e));
+    this.settingsToggle.addEventListener('click', () => this.toggleSettingsPanel());
 
     // Canvas interactions
     this.svg.on('mousedown', (event) => this.handleMouseDown(event));
@@ -2199,6 +2202,18 @@ class MultiDotViewer {
 
     // Update diagram list to reflect any changes
     this.updateDiagramList();
+  }
+
+  toggleSettingsPanel() {
+    const isOpen = this.settingsPanel.classList.contains('open');
+
+    if (isOpen) {
+      this.settingsPanel.classList.remove('open');
+      this.settingsToggle.classList.remove('active');
+    } else {
+      this.settingsPanel.classList.add('open');
+      this.settingsToggle.classList.add('active');
+    }
   }
 }
 

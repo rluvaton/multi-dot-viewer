@@ -256,9 +256,15 @@ body {
 }
 
 .btn-active {
-  background: var(--selection-bg) !important;
-  color: var(--selection-color) !important;
-  border-color: var(--selection-border) !important;
+  background: var(--selection-bg);
+  border-color: var(--selection-border);
+  color: var(--selection-color);
+}
+
+#settingsToggle.active {
+  background: var(--selection-bg);
+  border-color: var(--selection-border);
+  color: var(--selection-color);
 }
 
 .filter-control {
@@ -828,6 +834,20 @@ body {
     width: 36px;
     height: 36px;
   }
+
+  .settings-content {
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 16px;
+  }
+
+  .settings-section {
+    min-width: auto;
+  }
+
+  .settings-panel.open {
+    max-height: 600px;
+  }
 }
 
 /* Scrollbar styling */
@@ -878,4 +898,87 @@ body {
 .diagram-item:focus {
   outline: 2px solid #3b82f6;
   outline-offset: -2px;
+}
+
+/* Settings Panel */
+.settings-panel {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: 0 4px 12px var(--shadow-medium);
+  z-index: 95;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.settings-panel.open {
+  max-height: 400px;
+  padding: 20px 0;
+}
+
+.settings-content {
+  display: flex;
+  gap: 40px;
+  padding: 0 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.settings-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.settings-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-primary);
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.settings-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.settings-btn:active {
+  background: var(--bg-tertiary);
+  transform: translateY(1px);
+}
+
+.settings-btn.active {
+  background: var(--selection-bg);
+  border-color: var(--selection-border);
+  color: var(--selection-color);
 }
