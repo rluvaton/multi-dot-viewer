@@ -1388,10 +1388,11 @@ class MultiDotViewer {
           event.preventDefault();
           this.zoomOut();
           break;
-        case 'f':
-          event.preventDefault();
-          this.fitAllDiagrams();
-          break;
+        // Removed Ctrl+F/Cmd+F override to allow browser search
+        // case 'f':
+        //   event.preventDefault();
+        //   this.fitAllDiagrams();
+        //   break;
       }
     }
   }

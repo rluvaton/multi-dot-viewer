@@ -92,7 +92,6 @@ Visit [https://rluvaton.github.io/multi-dot-viewer/](https://rluvaton.github.io/
 - `Ctrl/Cmd + 0`: Reset view to default
 - `Ctrl/Cmd + +`: Zoom in
 - `Ctrl/Cmd + -`: Zoom out
-- `Ctrl/Cmd + F`: Fit all visible diagrams in view
 
 ## 🔗 Connection Analysis
 
